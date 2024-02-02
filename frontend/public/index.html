@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <link href="https://cdn.jsdelivr.net/npm/cesium@1.110.1/Build/Cesium/Widgets/widgets.min.css" rel="stylesheet">
+    <style>
+        .loading-indicator {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000; /* High z-index to be on top of other elements */
+  /* Add more styling for the spinner here */
+}
+
+.loading-indicator:not(.hidden) {
+  display: block;
+}
+    </style>
+</head>
+<body>
+    <div id="cesiumContainer"></div>
+     
+        
+        <div id="checkboxContainer" style="position: absolute; top: 10px; left: 10px; background-color: black; color: beige; padding: 10px; border-radius: 20px; display: none;">
+          <input type="checkbox" id="togglePointsCheckbox" name="togglePoints" /> <label for="togglePointsCheckbox">Toggle Points</label>
+      </div>
+    <!-- If using Webpack bundle -->
+    <!-- <script src="./bundle.js"></script> -->
+
+    <!-- If using ES6 modules directly -->
+    <!-- <script type="module" src="./index.mjs"></script> -->
+</body>
+</html>

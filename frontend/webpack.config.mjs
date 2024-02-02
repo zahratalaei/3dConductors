@@ -20,7 +20,7 @@ const config = {
   context: __dirname,
   mode: "development", // Use the environment variable we defined
   entry: {
-    app: ["./public/index.mjs"],
+    app: ["./src/index.mjs"],
   },
   output: {
     filename: "[name].js",
@@ -63,7 +63,7 @@ const config = {
         { from: path.join(cesiumSource, "Assets"), to: "Assets" },
         { from: path.join(cesiumSource, "Widgets"), to: "Widgets" },
         { from: path.join(cesiumSource, "ThirdParty"), to: "ThirdParty" },
-        { from: "output/content", to: "output/content" },
+        { from: "../data/outputs/content", to: "output/content" },
         {
           from: "../mercator-transforms-master",
           to: "mercator-transforms-master",
