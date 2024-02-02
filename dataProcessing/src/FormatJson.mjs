@@ -23,4 +23,4 @@ async function convertNdjsonToArray(inputFile, outputFile) {
 }
 
 // Example usage
-convertNdjsonToArray('../../data/splitFile/conductors_part7.json', '../../data/splitFile/formatted_conductors_part7.json');
+convertNdjsonToArray('../../data/splitFile/conductors_part7.json', '../../data/inputs/formatted_conductors_part7.json');

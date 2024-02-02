@@ -4,34 +4,34 @@ import proj4 from "proj4";
 import { WebMercatorTilingScheme, Cartographic, Cartesian3 } from "cesium";
 import { mkdir } from "fs/promises";
 import { fileURLToPath } from "url";
-import * as mercator from "../../../../mercator-transforms-master/src/index.mjs";
+import * as mercator from "../../mercator-transforms-master/src/index.mjs";
 
 // Recreate __dirname functionality
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const ZOOM_LEVEL = 18; // Set your zoom level
-const UTM_PROJECTION =
-  "+proj=utm +zone=55 +south +ellps=GRS80 +datum=GDA94 +units=m +no_defs";
+// const UTM_PROJECTION =
+//   "+proj=utm +zone=55 +south +ellps=GRS80 +datum=GDA94 +units=m +no_defs";
 const tileSystemName = "cesium";
-// Function to convert UTM to lat/long
-function fromUTMToLatLng(easting, northing) {
-  const [longitude, latitude] = proj4(UTM_PROJECTION, "WGS84", [
-    parseFloat(easting),
-    parseFloat(northing),
-  ]);
-  return { latitude, longitude };
-}
+// // Function to convert UTM to lat/long
+// function fromUTMToLatLng(easting, northing) {
+//   const [longitude, latitude] = proj4(UTM_PROJECTION, "WGS84", [
+//     parseFloat(easting),
+//     parseFloat(northing),
+//   ]);
+//   return { latitude, longitude };
+// }
 
-// Function to calculate tile coordinates
-function getTileCoordinates(latitude, longitude, level) {
-  const tilingScheme = new WebMercatorTilingScheme();
-  const cartographicPosition = Cartographic.fromDegrees(longitude, latitude);
-  const tileCoordinates = tilingScheme.positionToTileXY(
-    cartographicPosition,
-    level
-  );
-  return [tileCoordinates.x, tileCoordinates.y, level]; // Return as an array
-}
+// // Function to calculate tile coordinates
+// function getTileCoordinates(latitude, longitude, level) {
+//   const tilingScheme = new WebMercatorTilingScheme();
+//   const cartographicPosition = Cartographic.fromDegrees(longitude, latitude);
+//   const tileCoordinates = tilingScheme.positionToTileXY(
+//     cartographicPosition,
+//     level
+//   );
+//   return [tileCoordinates.x, tileCoordinates.y, level]; // Return as an array
+// }
 // Function to create the directory if it doesn't exist
 async function createDirectory(path) {
   try {
@@ -54,7 +54,8 @@ const directoryPath = path.join(
   __dirname,
   "..",
   "..",
-  "output",
+  "data",
+  "outputs",
   "content",
   `${ZOOM_LEVEL}`
 );
@@ -66,7 +67,7 @@ async function processDataAndSave() {
     const existingTileData = {};
 
     // Directory containing input files
-    const inputDirectory = path.join(__dirname, "..", "..", "data", "splitFile", "formatted_conductors");
+    const inputDirectory = path.join(__dirname, "..", "..", "data", "inputs", "formatted_conductors");
 
     // List all files in the directory
     const inputFiles = fs.readdirSync(inputDirectory);
@@ -132,24 +133,7 @@ async function processDataAndSave() {
             Voltage: conductor.Voltage,
             _field_16: conductor._field_16,
           };
-          //   Ambient_Tension: conductor.Ambient_Tension,
-          //   Ambient_Tension_CBL: conductor. Ambient_Tension_CBL,
-          //   Bay_Id: conductor.Bay_Id,
-          //   Captured_Date: conductor.Captured_Date,
-          //   Captured_Time: conductor.Captured_Time,
-          //   ConductorId: conductor.ConductorId,
-          //   Conductor_Length: conductor.Conductor_Length,
-          //   Conductor_Type: conductor.Conductor_Type,
-          //   Depot: conductor.Depot,
-          // K_Factor: conductor.K_Factor,
-          // MaintenanceArea:conductor.MaintenanceArea,
-          // MaxWind_Tension:conductor.MaxWind_Tension ,
-          // MaxWind_Tension_CBL:conductor.MaxWind_Tension_CBL ,
-          // Minimum_Ground_Clearance:conductor.Minimum_Ground_Clearance ,
-          // Minimum_Road_Clearance:conductor.Minimum_Road_Clearance ,
-          // Nominal_Breaking_Load:conductor.Nominal_Breaking_Load ,
-          // Voltage:conductor.Voltage,
-          // _field_16: conductor._field_16
+          
           // Use the tile coordinates as a key
           const tileKey = `${tile[0]}-${tile[1]}`;
 
