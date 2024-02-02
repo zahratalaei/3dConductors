@@ -63,11 +63,11 @@ const config = {
         { from: path.join(cesiumSource, "Assets"), to: "Assets" },
         { from: path.join(cesiumSource, "Widgets"), to: "Widgets" },
         { from: path.join(cesiumSource, "ThirdParty"), to: "ThirdParty" },
-        { from: "../data/outputs/content", to: "output/content" },
-        {
-          from: "../mercator-transforms-master",
-          to: "mercator-transforms-master",
-        },
+        
+        // {
+        //   from: "../mercator-transforms-master",
+        //   to: "mercator-transforms-master",
+        // },
       ],
     }),
     new webpack.DefinePlugin({

@@ -3,21 +3,32 @@ import * as Cesium from 'cesium/Cesium';
 // Create a new map for storing points data
 export const pointsDataMap = new Map();
 
-export async function fetchDataForTile(tile,zoomLevel) {
-    const url = `http://localhost:3000/getCatenaries/${zoomLevel}/${tile._x}/${tile._y}.json`;
-    try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-        const data = await response.json();
-        console.log(data);
-        return data;
-    } catch (error) {
-        console.error('Failed to fetch tile data:', error);
-        return null;
-    }
+export async function fetchDataForTile(tile, zoomLevel, dataType = 'full') {
+  let url;
+  switch (dataType) {
+      case 'attributes':
+          url = `http://localhost:3000/getConductorAttributes/${zoomLevel}/${tile._x}/${tile._y}`;
+          break;
+      case 'cartesian':
+          url = `http://localhost:3000/getConductorCartesian/${zoomLevel}/${tile._x}/${tile._y}`;
+          break;
+      default:
+          url = `http://localhost:3000/getCatenaries/${zoomLevel}/${tile._x}/${tile._y}`;
   }
+
+  try {
+      const response = await fetch(url);
+      if (!response.ok) {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log(data);
+      return data;
+  } catch (error) {
+      console.error(`Failed to fetch ${dataType} data for tile:`, error);
+      return null;
+  }
+}
 export function addSplineForPoints(tileId,conductorId, points,primitiveMap,primitiveCollectionMap,viewer) {
    // Check if a primitive already exists for this conductorId, and if so, remove it
    const existingPrimitive = primitiveMap.get(conductorId);

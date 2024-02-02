@@ -115,7 +115,7 @@ function onCameraChanged(viewer) {
     if (!primitiveCollectionMap.has(tileId)) {
       // Fetch data for new visible tile
       const fetchDataPromise = limit(() =>
-        fetchDataForTile(tile, zoomLevel)
+        fetchDataForTile(tile, zoomLevel,"cartesian")
           .then((tileData) => {
             if (tileData) {
               tileData.forEach((dataItem) => {
@@ -184,20 +184,18 @@ function resetLastPickedPrimitiveColor() {
 
 async function fetchConductorInfo(tileId, conductorId, zoomLevel) {
   try {
-    const url = `http://localhost:3000/getCatenaries/${zoomLevel}/${tileId.x}/${tileId.y}-info.json`;
+    const url = `http://localhost:3000/getConductorAttributes/${zoomLevel}/${tileId.x}/${tileId.y}/${conductorId}`;
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
-    const data = await response.json();
-    // Assuming data is an array of conductors, find the one with matching conductorId
-    return data.find((info) => info.ConductorId === conductorId);
+    const attributes = await response.json();
+    return attributes;
   } catch (error) {
-    console.error("Failed to fetch conductor info:", error);
+    console.error("Failed to fetch conductor attributes:", error);
     return null;
   }
 }
-
 function createDescriptionHtml(conductorInfo) {
   // Modify this function to use conductorInfo data
   return `
