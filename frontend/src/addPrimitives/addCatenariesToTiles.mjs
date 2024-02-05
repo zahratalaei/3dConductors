@@ -29,10 +29,13 @@ export async function fetchDataForTile(tile, zoomLevel, dataType = 'full') {
       return null;
   }
 }
-export function addSplineForPoints(tileId,conductorId, points,primitiveMap,primitiveCollectionMap,viewer) {
+export function addSplineForPoints(tileId,conductorId, points,color,primitiveMap,primitiveCollectionMap,viewer) {
    // Check if a primitive already exists for this conductorId, and if so, remove it
    const existingPrimitive = primitiveMap.get(conductorId);
-   console.log("🚀 ~ file: addCatenariesToTiles.mjs:24 ~ addSplineForPoints ~ existingPrimitive:", existingPrimitive)
+  // Convert the color from hex to a Cesium.Color instance
+  const conductorColor = Cesium.Color.fromCssColorString(color);
+  console.log("🚀 ~ addSplineForPoints ~ conductorColor:", conductorColor)
+
    if (existingPrimitive) {
        viewer.scene.primitives.remove(existingPrimitive);
    }
@@ -62,9 +65,7 @@ export function addSplineForPoints(tileId,conductorId, points,primitiveMap,primi
           vertexFormat: Cesium.PolylineMaterialAppearance.VERTEX_FORMAT 
   
         }),
-        attributes: {
-          color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.RED)
-        },
+        
         id: JSON.stringify(combinedId),
          
       });
@@ -74,7 +75,7 @@ export function addSplineForPoints(tileId,conductorId, points,primitiveMap,primi
         geometryInstances: [geometryInstance],
           appearance: new Cesium.PolylineMaterialAppearance({
           material: new Cesium.Material.fromType('Color', {
-              color: Cesium.Color.RED
+              color: conductorColor
             }),
             translucent: false
           }),

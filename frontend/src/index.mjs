@@ -46,7 +46,7 @@ viewer.infoBox.frame.setAttribute(
 );
 viewer.infoBox.frame.src = "about:blank";
 // Show the checkbox after the viewer is set up
-document.getElementById('checkboxContainer').style.display = 'block';
+// document.getElementById('checkboxContainer').style.display = 'block';
 function getTilesToRender(viewer) {
   const tiles = viewer.scene.globe._surface._tilesToRender;
   return tiles;
@@ -121,12 +121,13 @@ function onCameraChanged(viewer) {
               tileData.forEach((dataItem) => {
                 const conductorId = dataItem.conductorId;
                 const pointsSet = dataItem.cartesian;
+                const conductorColor =dataItem.color;
                 conductorToTileMap.set(conductorId, tileId);
                 addSplineForPoints(
                   tileId,
                   conductorId,
                   pointsSet,
-                  primitiveMap,
+                  conductorColor,                  primitiveMap,
                   primitiveCollectionMap,
                   viewer
                 );

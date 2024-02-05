@@ -54,7 +54,8 @@ app.get('/getConductorCartesian/:zoomLevel/:x/:y', async (req, res) => {
         const cartesianDataWithId = jsonData.map(item => {
             return {
                 conductorId: item.ConductorId,  // Include the ConductorId
-                cartesian: item.cartesian
+                cartesian: item.cartesian,
+                color: item.color
             };
         });
         res.json(cartesianDataWithId);
