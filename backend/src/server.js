@@ -8,21 +8,6 @@ const port = 3000;
 
 app.use(cors());
 
-// Static files are served from 'data/content'
-// app.use('/getCatenaries', express.static(path.join(__dirname, "data", "contentNew")));
-app.use('/getCatenaries', express.static(path.join(__dirname,"..","..","data", "outputs", "content")));
-
-// Endpoint to serve full data (attributes + Cartesian)
-app.get('/getCatenaries/:zoomLevel/:x/:y', async (req, res) => {
-    const dataPath = getDataPath(req.params);
-    try {
-        const jsonData = await readJsonData(dataPath);
-        res.json(jsonData);
-    } catch (error) {
-        handleFileReadError(error, res);
-    }
-});
-
 // Endpoint to serve only the attributes of a specific conductor by ID
 app.get('/getConductorAttributes/:zoomLevel/:x/:y/:conductorId', async (req, res) => {
     const { zoomLevel, x, y, conductorId } = req.params;
@@ -55,7 +40,8 @@ app.get('/getConductorCartesian/:zoomLevel/:x/:y', async (req, res) => {
             return {
                 conductorId: item.ConductorId,  // Include the ConductorId
                 cartesian: item.cartesian,
-                color: item.color
+                color: item.color,
+                BayId: item.Bay_Id // Including BayId for reference
             };
         });
         res.json(cartesianDataWithId);
@@ -64,10 +50,13 @@ app.get('/getConductorCartesian/:zoomLevel/:x/:y', async (req, res) => {
     }
 });
 
+
+
+
 // Function to construct the data path
 function getDataPath({ zoomLevel, x, y }) {
     // return path.join(__dirname, "data", "content", zoomLevel, x, `${y}.json`);
-    return path.join(__dirname,"..","..","data", "outputs", "content", zoomLevel, x, `${y}-data.json`);
+    return path.join(__dirname,"..","..","data", "outputs", "conductor", zoomLevel, x, `${y}-data.json`);
 }
 
 // Function to read and parse JSON data from a file
@@ -84,4 +73,108 @@ function handleFileReadError(error, res) {
 
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
+});
+
+
+
+// Endpoint to serve the first point of each conductor by BayId within a tile
+app.get('/getFirstPointByBayId/:zoomLevel/:x/:y/:BayId', async (req, res) => {
+    const { zoomLevel, x, y, BayId } = req.params;
+    const dataPath = getDataPath({ zoomLevel, x, y });
+
+    try {
+        const jsonData = await readJsonData(dataPath);
+        // Filter conductors by BayId
+        const filteredConductors = jsonData.filter(item => item.Bay_Id === BayId.trim());
+
+        // Extract the first point from each filtered conductor's cartesian data
+        const firstPoints = filteredConductors.map(conductor => ({
+            ConductorId: conductor.ConductorId,
+            FirstPoint: conductor.cartesian[0], // Assuming 'cartesian' array exists and has at least one point
+            Color: conductor.color, // Including color if needed
+            
+        }));
+
+        // Respond with the first points, or indicate that no matching conductors were found
+        if (firstPoints.length > 0) {
+            res.json(firstPoints);
+        } else {
+            res.json({ message: 'No conductors found for the specified BayId in this tile.', firstPoints: [] });
+        }
+    } catch (error) {
+        handleFileReadError(error, res);
+    }
+});
+
+// Endpoint to serve the end point of each conductor by BayId within a tile
+app.get('/getEndPointByBayId/:zoomLevel/:x/:y/:BayId', async (req, res) => {
+    const { zoomLevel, x, y, BayId } = req.params;
+    const dataPath = getDataPath({ zoomLevel, x, y });
+
+    try {
+        const jsonData = await readJsonData(dataPath);
+        // Filter conductors by BayId
+        const filteredConductors = jsonData.filter(item => item.Bay_Id === BayId.trim());
+
+        // Extract the first point from each filtered conductor's cartesian data
+        const endPoints = filteredConductors.map(conductor => ({
+            ConductorId: conductor.ConductorId,
+            EndPoint: conductor.cartesian[1], // Assuming 'cartesian' array exists and has at least one point
+            Color: conductor.color, // Including color if needed
+            
+        }));
+
+        // Respond with the first points, or indicate that no matching conductors were found
+        if (endPoints.length > 0) {
+            res.json(endPoints);
+        } else {
+            res.json({ message: 'No conductors found for the specified BayId in this tile.', endPoints: [] });
+        }
+    } catch (error) {
+        handleFileReadError(error, res);
+    }
+});
+
+// Endpoint to serve only the attributes of a specific pole by ID
+app.get('/getPolesByTile/:zoomLevel/:x/:y', async (req, res) => {
+    const { zoomLevel, x, y } = req.params;
+    const dataPath = path.join(__dirname, '..', '..', 'data', 'outputs', 'pole', zoomLevel, x, `${y}-data.json`);
+    try {
+        const jsonData = await readJsonData(dataPath);
+
+        // Extracting only coordinates and Pole_Id for each pole
+        const polesData = jsonData.map(pole => ({
+            coordinates: pole.coordinates,
+            Pole_Id: pole.Pole_Id,
+            poleHeight: pole.Pole_Height,
+            poleColor: pole.color
+        }));
+
+        res.json(polesData);
+    } catch (error) {
+        handleFileReadError(error, res);
+    }
+});
+// Endpoint to retrieve all information of a specific pole by its Pole_Id within a tile
+app.get('/getPoleById/:zoomLevel/:x/:y/:Pole_Id', async (req, res) => {
+    const { zoomLevel, x, y, Pole_Id } = req.params;
+    const dataPath = path.join(__dirname, '..', '..', 'data', 'outputs', 'pole', zoomLevel, x, `${y}-data.json`);
+
+    try {
+        const jsonData = await readJsonData(dataPath);
+        
+        // Find the pole by Pole_Id
+        const pole = jsonData.find(pole => pole.Pole_Id === Pole_Id);
+        
+        if (!pole) {
+            res.status(404).json({ message: 'Pole not found' });
+            return;
+        }
+  // Exclude the coordinate information
+  const { coordinates, ...poleInfo } = pole;
+        // Respond with the pole's information
+        res.json(poleInfo);
+    } catch (error) {
+        handleFileReadError(error, res);
+    }
 });

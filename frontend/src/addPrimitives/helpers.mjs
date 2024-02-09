@@ -13,7 +13,7 @@ export function removePrimitiveForInvisibleTiles(newVisibleTileIds,primitiveColl
   const tileIdsToRemove = Array.from(primitiveCollectionMap.keys())
                                .filter(tileId => !newVisibleTileIds.has(tileId));
 
-  console.log("Tiles to remove:", tileIdsToRemove);
+  // console.log("Tiles to remove:", tileIdsToRemove);
 
   // Remove each old Primitive collection that is no longer visible
   tileIdsToRemove.forEach(tileId => {

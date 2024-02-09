@@ -1,8 +1,13 @@
 import * as Cesium from "cesium/Cesium";
-import { fetchDataForTile, addSplineForPoints,pointsDataMap } from "./addPrimitives/addCatenariesToTiles.mjs";
+import {
+  fetchDataForTile,
+  addSplineForPoints,
+  pointsDataMap,
+  createPoles,
+} from "./addPrimitives/addCatenariesToTiles.mjs";
 import {
   removePrimitiveForInvisibleTiles,
-  intersectingTiles,
+  intersectingTiles,getOrCreatePrimitiveArrayForTile
 } from "./addPrimitives/helpers.mjs";
 import pLimit from "p-limit";
 const limit = pLimit(10); // Adjust the limit as needed
@@ -115,22 +120,63 @@ function onCameraChanged(viewer) {
     if (!primitiveCollectionMap.has(tileId)) {
       // Fetch data for new visible tile
       const fetchDataPromise = limit(() =>
-        fetchDataForTile(tile, zoomLevel,"cartesian")
+        fetchDataForTile(tile, zoomLevel, "cartesian")
           .then((tileData) => {
-            if (tileData) {
-              tileData.forEach((dataItem) => {
-                const conductorId = dataItem.conductorId;
-                const pointsSet = dataItem.cartesian;
-                const conductorColor =dataItem.color;
-                conductorToTileMap.set(conductorId, tileId);
-                addSplineForPoints(
-                  tileId,
-                  conductorId,
-                  pointsSet,
-                  conductorColor,                  primitiveMap,
+            if (tileData && tileData.length > 0) {
+              // Group conductors by BayId
+              const bayGroups = tileData.reduce((acc, conductor) => {
+                const { BayId } = conductor; // Adjust this line if the property name in your data is different
+                acc[BayId] = acc[BayId] || [];
+                acc[BayId].push(conductor);
+                return acc;
+              }, {});
+
+              // Process each group of conductors by BayId
+              Object.entries(bayGroups).forEach(([bayId, conductors]) => {
+                // Draw individual splines for each conductor
+                conductors.forEach((conductor) => {
+                  const { conductorId, cartesian, color } = conductor;
+                  addSplineForPoints(
+                    tileId,
+                    conductorId,
+                    cartesian,
+                    color,
+                    primitiveMap,
+                    primitiveCollectionMap,
+                    viewer
+                  );
+                });
+                createPoles(
+                  zoomLevel,
+                  tile,
+                  viewer,
                   primitiveCollectionMap,
-                  viewer
+                  primitiveMap
                 );
+                // If multiple conductors exist in the bay, draw a line connecting their first points
+                if (conductors.length > 1) {
+                  const firstPoints = conductors.map(
+                    (conductor) => conductor.cartesian[0]
+                  );
+                  const endPoints = conductors.map(
+                    (conductor) => conductor.cartesian[10]
+                  );
+
+                  addCrossarms(
+                    tileId,
+                    firstPoints,
+                    viewer,
+                    primitiveCollectionMap,
+                    primitiveMap
+                  );
+                  addCrossarms(
+                    tileId,
+                    endPoints,
+                    viewer,
+                    primitiveCollectionMap,
+                    primitiveMap
+                  );
+                }
               });
             }
           })
@@ -157,6 +203,181 @@ function onCameraChanged(viewer) {
     viewer
   );
 }
+
+// function addCrossarms(tileId, points, viewer, primitiveCollectionMap, primitiveMap, heightTolerance = 0.2) {
+//   // Convert Cartesian coordinates to Cartographic to get heights
+//   const cartographicPoints = points.map(point =>
+//     Cesium.Cartographic.fromCartesian(new Cesium.Cartesian3(point.x, point.y, point.z))
+//   );
+
+//   // Group points based on height similarity
+//   let groupedPoints = [];
+//   cartographicPoints.forEach(point => {
+//     let addedToGroup = false;
+//     for (let group of groupedPoints) {
+//       if (Math.abs(group[0].height - point.height) <= heightTolerance) {
+//         group.push(point);
+//         addedToGroup = true;
+//         break;
+//       }
+//     }
+//     if (!addedToGroup) {
+//       groupedPoints.push([point]);
+//     }
+//   });
+
+//   // Function to order points within each group using the Nearest Neighbor heuristic
+//   function orderPoints(points) {
+//     if (points.length <= 1) {
+//       // If there is only one point or none, no further action is needed.
+//       return points;
+//     }
+  
+//     // Sort points by the x-coordinate.
+//     const sortedPoints = points.sort((a, b) => a.x - b.x);
+  
+//     // Return the first and last points in the sorted array as the endpoints
+//     const endpoints = [sortedPoints[0], sortedPoints[sortedPoints.length - 1]];
+//     return endpoints;
+//   }
+
+//   // Convert Cartographic back to Cartesian3 for each group and draw lines
+//   groupedPoints.forEach((group, index) => {
+//     if (group.length > 1) {
+//       // Order the points in the group
+//       const orderedGroup = orderPoints(group);
+
+//       // Ensure group has at least two points to draw a line
+//       const crossarmId = `crossarm-${index}`;
+//       // Check if a primitive for this index already exists and remove it
+//       const existingPrimitive = primitiveMap.get(crossarmId);
+//       if (existingPrimitive) {
+//         viewer.scene.primitives.remove(existingPrimitive);
+//       }
+      
+//       // Convert ordered cartographic points back to Cartesian3
+//       const positions = orderedGroup.map(cartographicPoint =>
+//         Cesium.Cartesian3.fromRadians(cartographicPoint.longitude, cartographicPoint.latitude, cartographicPoint.height)
+//       );
+//       console.log("🚀 ~ groupedPoints.forEach ~ positions:", positions)
+
+//       // Create a polyline geometry for the group
+//       const polylineGeometry = new Cesium.PolylineGeometry({
+//         positions: positions,
+//         width: 7, // Adjust width as needed
+//         vertexFormat: Cesium.PolylineColorAppearance.VERTEX_FORMAT,
+//       });
+
+//       const geometryInstance = new Cesium.GeometryInstance({
+//         geometry: polylineGeometry,
+//         attributes: {
+//           color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.ORANGE), // Customize the color if needed
+//         },
+//       });
+
+//       // Create the primitive for the polyline and add it to the scene
+//       const polylinePrimitive = new Cesium.Primitive({
+//         geometryInstances: [geometryInstance],
+//         appearance: new Cesium.PolylineColorAppearance({
+//           translucent: false,
+//         }),
+//       });
+
+//       // Add the new primitive to the array and update the map
+//       const crossarmPrimitiveArray = getOrCreatePrimitiveArrayForTile(tileId, primitiveMap);
+//       crossarmPrimitiveArray.push(polylinePrimitive);
+//       primitiveCollectionMap.set(tileId, crossarmPrimitiveArray);
+
+//       viewer.scene.primitives.add(polylinePrimitive);
+//     }
+//   });
+// }
+
+function addCrossarms(
+  tileId,
+  points,
+  viewer,
+  primitiveCollectionMap,
+  primitiveMap,heightTolerance = 0.2
+) {
+  // Convert Cartesian coordinates to Cartographic to get heights
+  const cartographicPoints = points.map((point) =>
+    Cesium.Cartographic.fromCartesian(
+      new Cesium.Cartesian3(point.x, point.y, point.z)
+    )
+  );
+
+  // Group points based on height similarity
+  let groupedPoints = [];
+  cartographicPoints.forEach((point) => {
+    let addedToGroup = false;
+    for (let group of groupedPoints) {
+      if (Math.abs(group[0].height - point.height) <= heightTolerance) {
+        group.push(point);
+        addedToGroup = true;
+        break;
+      }
+    }
+    if (!addedToGroup) {
+      groupedPoints.push([point]);
+    }
+  });
+
+  // Convert Cartographic back to Cartesian3 for each group and draw lines
+  groupedPoints.forEach((group, index) => {
+    // Use an index as the identifier
+    if (group.length > 1) {
+      // Ensure group has at least two points to draw a line
+      const crossarmId = `crossarm-${index}`;
+      // Check if a primitive for this index already exists and remove it
+      const existingPrimitive = primitiveMap.get(crossarmId);
+      if (existingPrimitive) {
+        viewer.scene.primitives.remove(existingPrimitive);
+      }
+      const positions = group.map((cartographicPoint) =>
+        Cesium.Cartesian3.fromRadians(
+          cartographicPoint.longitude,
+          cartographicPoint.latitude,
+          cartographicPoint.height
+        )
+      );
+
+      // Create a polyline geometry for the group
+      const polylineGeometry = new Cesium.PolylineGeometry({
+        positions: positions,
+        width: 6, // Adjust width as needed
+        vertexFormat: Cesium.PolylineColorAppearance.VERTEX_FORMAT,
+      });
+
+      const geometryInstance = new Cesium.GeometryInstance({
+        geometry: polylineGeometry,
+        attributes: {
+          color: Cesium.ColorGeometryInstanceAttribute.fromColor(
+            Cesium.Color.ORANGE
+          ), // Customize the color if needed
+        },
+      });
+
+      // Create the primitive for the polyline and add it to the scene
+      const polylinePrimitive = new Cesium.Primitive({
+        geometryInstances: [geometryInstance],
+        appearance: new Cesium.PolylineColorAppearance({
+          translucent: false,
+        }),
+      });
+      // Get or create the primitive array for this tile
+      const crossarmPrimitiveArray = getOrCreatePrimitiveArrayForTile(
+        tileId,
+        primitiveMap
+      );
+      crossarmPrimitiveArray.push(polylinePrimitive); // Add the new primitive to the array
+      primitiveCollectionMap.set(tileId, crossarmPrimitiveArray); // Make sure this line exists
+
+      viewer.scene.primitives.add(polylinePrimitive);
+    }
+  });
+}
+
 
 function computeTileAtZoomLevel(tile) {
   if (!tile) return null;
@@ -209,7 +430,8 @@ function createDescriptionHtml(conductorInfo) {
   
  `;
 }
-{/* <div id="tabs">2023-12-11 13:03:25
+{
+  /* <div id="tabs">2023-12-11 13:03:25
     <dl>
       <dt><strong>Conductor:</strong></dt>
       <dd><strong>Conductor Id:</strong> ${conductorInfo.ConductorId}</dd>
@@ -218,7 +440,8 @@ function createDescriptionHtml(conductorInfo) {
       <dd><strong>Bay ID:</strong> ${conductorInfo.Bay_Id}</dd>
       <dd><strong>Voltage:</strong> ${conductorInfo.Voltage}</dd>
     </dl>
-  </div> */}
+  </div> */
+}
 function removeConductorPoints(conductorId) {
   const pointsToRemove = viewer.entities.values.filter((entity) =>
     entity.id.startsWith(`point_${conductorId}_`)
@@ -271,6 +494,14 @@ function highlightConductor(primitive) {
     primitive.appearance.material.uniforms.color.clone();
   primitive.appearance.material.uniforms.color = Cesium.Color.YELLOW; // Highlight color
 }
+/**Highlight selected pole */
+function highlightPole(primitive) {
+  resetLastPickedPrimitiveColor();
+  lastPickedPrimitive = primitive;
+  lastPickedPrimitiveOriginalColor =
+    primitive.appearance.material.uniforms.color.clone();
+  primitive.appearance.material.uniforms.color = Cesium.Color.YELLOW; // Highlight color for poles
+}
 
 // function resetLastPickedPrimitiveColor() {
 //   if (lastPickedPrimitive && lastPickedPrimitiveOriginalColor) {
@@ -290,11 +521,36 @@ viewer.screenSpaceEventHandler.setInputAction(async function onLeftClick(
     pickedObject.primitive &&
     pickedObject.id
   ) {
+    const combinedId = JSON.parse(pickedObject.id); // Parse the JSON string to get the object
+
     if (
       typeof pickedObject.id._id === "string" &&
       pickedObject.id._id.startsWith("point_")
     ) {
       highlightPoint(pickedObject.id._id);
+    } else if (combinedId.hasOwnProperty("poleId")) {
+      // Handle pole selection here
+      const poleId = combinedId.poleId;
+      // Add your code to handle pole selection
+      highlightPole(pickedObject.primitive);
+      // Split tileId string into x and y components
+      const tileIdParts = combinedId.tileId.split("-");
+      const newTileId = {
+        x: tileIdParts[0],
+        y: tileIdParts[1],
+      };
+
+      // Extract zoom level from tileId
+      const zoomLevel = tileIdParts[2];
+      const poleInfo = await fetchPoleInfo(newTileId, poleId, zoomLevel);
+      if (poleInfo) {
+        // Display information about the selected pole in the info box
+        viewer.selectedEntity = new Cesium.Entity({
+          name: `Pole Details`,
+          description: createPoleDescriptionHtml(poleInfo),
+          id: pickedObject.id,
+        });
+      }
     } else {
       try {
         if (currentConductorId) {
@@ -554,4 +810,42 @@ document.addEventListener("keydown", function (event) {
 });
 function getTileIdFromConductorId(conductorId) {
   return conductorToTileMap.get(conductorId);
+}
+
+// Function to fetch pole information
+async function fetchPoleInfo(tileId, poleId, zoomLevel) {
+  try {
+    const url = `http://localhost:3000/getPoleById/${zoomLevel}/${tileId.x}/${tileId.y}/${poleId}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    const poleInfo = await response.json();
+    return poleInfo;
+  } catch (error) {
+    console.error("Failed to fetch pole information:", error);
+    return null;
+  }
+}
+
+// Function to create HTML content for displaying pole information
+function createPoleDescriptionHtml(poleInfo) {
+  // Modify this function to use poleInfo data
+  return `
+    <table class="cesium-infoBox-defaultTable">
+      <tbody>
+        <tr><th>Pole ID:</th><td>${poleInfo.Pole_Id}</td></tr>
+        <tr><th>Pole Height:</th><td>${poleInfo.Pole_Height}</td></tr>
+        <tr><th>Site Label:</th><td>${poleInfo.Site_Label}</td></tr>
+        <tr><th>Max_Voltage:</th><td>${poleInfo.Max_Voltage}</td></tr>
+        <tr><th>Pole_Height</th><td>${poleInfo.Pole_Height}</td></tr>
+        <tr><th>Pole_Lean:</th><td>${poleInfo.Pole_Lean}</td></tr>
+        <tr><th>Captured_Date:</th><td>${poleInfo.Captured_Date}</td></tr>
+        <tr><th>Captured_Time:</th><td>${poleInfo.Captured_Time}</td></tr>
+        <tr><th>Maintenance Area:</th><td>${poleInfo.MaintenanceArea}</td></tr>
+        <tr><th>Depot:</th><td>${poleInfo.Depot}</td></tr>
+        <!-- Add more pole attributes here -->
+      </tbody>
+    </table>
+  `;
 }

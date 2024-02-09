@@ -56,7 +56,7 @@ const directoryPath = path.join(
   "..",
   "data",
   "outputs",
-  "content",
+  "conductors",
   `${ZOOM_LEVEL}`
 );
 
@@ -67,7 +67,7 @@ async function processDataAndSave() {
     const existingTileData = {};
 
     // Directory containing input files
-    const inputDirectory = path.join(__dirname, "..", "..", "data", "inputs", "formatted_conductors");
+    const inputDirectory = path.join(__dirname, "..", "..", "data", "inputs", "conductors","formatted_conductors");
 
     // List all files in the directory
     const inputFiles = fs.readdirSync(inputDirectory);
