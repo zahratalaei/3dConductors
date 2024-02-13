@@ -3,11 +3,13 @@ import {
   fetchDataForTile,
   addSplineForPoints,
   pointsDataMap,
-  createPoles,
+  fetchPolesData,
+  drawPole,
 } from "./addPrimitives/addCatenariesToTiles.mjs";
 import {
   removePrimitiveForInvisibleTiles,
-  intersectingTiles,getOrCreatePrimitiveArrayForTile
+  intersectingTiles,
+  getOrCreatePrimitiveArrayForTile,
 } from "./addPrimitives/helpers.mjs";
 import pLimit from "p-limit";
 const limit = pLimit(10); // Adjust the limit as needed
@@ -102,6 +104,7 @@ function onCameraChanged(viewer) {
 
   // Compute corresponding tiles at zoomLevel for the top tiles
   const tilesAtZoomLevel = topTiles.map((tile) => {
+    console.log("🚀 ~ tilesAtZoomLevel ~ tile:", tile);
     return computeTileAtZoomLevel(tile);
   });
   // If the camera is zoomed out to a level below 18, don't add any polylines
@@ -120,8 +123,12 @@ function onCameraChanged(viewer) {
     if (!primitiveCollectionMap.has(tileId)) {
       // Fetch data for new visible tile
       const fetchDataPromise = limit(() =>
-        fetchDataForTile(tile, zoomLevel, "cartesian")
-          .then((tileData) => {
+      Promise.all([
+        fetchDataForTile(tile, zoomLevel, "cartesian"), // Assuming fetchDataForTile can be parameterized to fetch different types of data
+        fetchPolesData(tile,zoomLevel) // Fetch pole data
+      ])
+        // fetchDataForTile(tile, zoomLevel, "cartesian")
+          .then(([tileData, polesData]) => {
             if (tileData && tileData.length > 0) {
               // Group conductors by BayId
               const bayGroups = tileData.reduce((acc, conductor) => {
@@ -146,14 +153,19 @@ function onCameraChanged(viewer) {
                     viewer
                   );
                 });
-                createPoles(
-                  zoomLevel,
-                  tile,
-                  viewer,
-                  primitiveCollectionMap,
-                  primitiveMap
-                );
-                // If multiple conductors exist in the bay, draw a line connecting their first points
+                if (polesData && polesData.length > 0) {
+                  polesData.forEach(pole => {
+                    drawPole(
+                      zoomLevel,
+                      tile,
+                      pole,
+                      viewer,
+                      primitiveCollectionMap,
+                      primitiveMap
+                    )
+                  });
+                }
+                
                 if (conductors.length > 1) {
                   const firstPoints = conductors.map(
                     (conductor) => conductor.cartesian[0]
@@ -232,10 +244,10 @@ function onCameraChanged(viewer) {
 //       // If there is only one point or none, no further action is needed.
 //       return points;
 //     }
-  
+
 //     // Sort points by the x-coordinate.
 //     const sortedPoints = points.sort((a, b) => a.x - b.x);
-  
+
 //     // Return the first and last points in the sorted array as the endpoints
 //     const endpoints = [sortedPoints[0], sortedPoints[sortedPoints.length - 1]];
 //     return endpoints;
@@ -254,7 +266,7 @@ function onCameraChanged(viewer) {
 //       if (existingPrimitive) {
 //         viewer.scene.primitives.remove(existingPrimitive);
 //       }
-      
+
 //       // Convert ordered cartographic points back to Cartesian3
 //       const positions = orderedGroup.map(cartographicPoint =>
 //         Cesium.Cartesian3.fromRadians(cartographicPoint.longitude, cartographicPoint.latitude, cartographicPoint.height)
@@ -298,7 +310,8 @@ function addCrossarms(
   points,
   viewer,
   primitiveCollectionMap,
-  primitiveMap,heightTolerance = 0.2
+  primitiveMap,
+  heightTolerance = 0.2
 ) {
   // Convert Cartesian coordinates to Cartographic to get heights
   const cartographicPoints = points.map((point) =>
@@ -377,7 +390,6 @@ function addCrossarms(
     }
   });
 }
-
 
 function computeTileAtZoomLevel(tile) {
   if (!tile) return null;
