@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "type":"module",
+  "type": "module",
   "scripts": {
     "start": "webpack serve --hot --watch",
     "build": "webpack",
@@ -14,9 +14,11 @@
   "license": "ISC",
   "dependencies": {
     "cesium": "^1.114.0",
+    "file-loader": "^6.2.0",
     "node-polyfill-webpack-plugin": "^3.0.0",
     "p-limit": "^5.0.0",
-    "proj4": "^2.10.0"
+    "proj4": "^2.10.0",
+    "url-loader": "^4.1.1"
   },
   "devDependencies": {
     "clean-webpack-plugin": "^4.0.0",

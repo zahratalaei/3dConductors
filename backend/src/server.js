@@ -56,7 +56,7 @@ app.get('/getConductorCartesian/:zoomLevel/:x/:y', async (req, res) => {
 // Function to construct the data path
 function getDataPath({ zoomLevel, x, y }) {
     // return path.join(__dirname, "data", "content", zoomLevel, x, `${y}.json`);
-    return path.join(__dirname,"..","..","data", "outputs", "conductor", zoomLevel, x, `${y}-data.json`);
+    return path.join(__dirname,"..","..","data", "outputs", "conductors", zoomLevel, x, `${y}-data.json`);
 }
 
 // Function to read and parse JSON data from a file
@@ -178,3 +178,34 @@ app.get('/getPoleById/:zoomLevel/:x/:y/:Pole_Id', async (req, res) => {
         handleFileReadError(error, res);
     }
 });
+
+// Endpoint to retrieve all information of a specific minimum within a tile
+app.get('/getMGCByTile/:zoomLevel/:x/:y', async (req,res)=>{
+    const { zoomLevel, x, y } = req.params;
+    const dataPath = path.join(__dirname, '..', '..', 'data', 'outputs', 'mgc', zoomLevel, x, `${y}-data.json`);
+    try {
+        const jsonData = await readJsonData(dataPath);
+        // // Extracting only coordinates and Pole_Id for each pole
+        // const MGCData = jsonData.map(data => ({
+        //     coordinates: data.coordinates,
+        //     Pole_Id: data.Pole_Id,
+        //     poleHeight: data.Pole_Height,
+        //     poleColor: data.color
+        // }));
+
+        res.json(jsonData);
+    } catch (error) {
+        handleFileReadError(error, res);
+    }
+})
+// Endpoint to retrieve all information of a Vegetation Intrusion  within a tile
+app.get('/getVIByTile/:zoomLevel/:x/:y', async (req,res)=>{
+    const { zoomLevel, x, y } = req.params;
+    const dataPath = path.join(__dirname, '..', '..', 'data', 'outputs', 'VI', zoomLevel, x, `${y}-data.json`);
+    try {
+        const jsonData = await readJsonData(dataPath);
+        res.json(jsonData);
+    } catch (error) {
+        handleFileReadError(error, res);
+    }
+})

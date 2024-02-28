@@ -5,6 +5,10 @@ import {
   pointsDataMap,
   fetchPolesData,
   drawPole,
+  drawMGC,
+  createAlert,
+  fetchVIsData,
+  fetchMGCsData
 } from "./addPrimitives/addCatenariesToTiles.mjs";
 import {
   removePrimitiveForInvisibleTiles,
@@ -18,7 +22,6 @@ const zoomLevel = 18;
 const primitiveMap = new Map();
 const primitiveCollectionMap = new Map();
 const conductorToTileMap = new Map();
-
 // Initialize the Cesium viewer
 const viewer = new Cesium.Viewer("cesiumContainer", {
   terrain: Cesium.Terrain.fromWorldTerrain({
@@ -31,8 +34,9 @@ const viewer = new Cesium.Viewer("cesiumContainer", {
   selectionIndicator: true,
   allowDataURIs: true,
 });
-// viewer.extend(Cesium.viewerCesiumInspectorMixin);
+viewer.extend(Cesium.viewerCesiumInspectorMixin);
 // viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
+viewer.scene.globe.depthTestAgainstTerrain = true;
 viewer.infoBox.viewModel.showInfo = true;
 viewer.camera.flyTo({
   destination: Cesium.Cartesian3.fromDegrees(
@@ -52,6 +56,8 @@ viewer.infoBox.frame.setAttribute(
   "allow-same-origin allow-popups allow-forms allow-scripts"
 );
 viewer.infoBox.frame.src = "about:blank";
+viewer.scene.mode = Cesium.SceneMode.SCENE3D; // Or SCENE2D, COLUMBUS_VIEW
+
 // Show the checkbox after the viewer is set up
 // document.getElementById('checkboxContainer').style.display = 'block';
 function getTilesToRender(viewer) {
@@ -104,7 +110,6 @@ function onCameraChanged(viewer) {
 
   // Compute corresponding tiles at zoomLevel for the top tiles
   const tilesAtZoomLevel = topTiles.map((tile) => {
-    console.log("🚀 ~ tilesAtZoomLevel ~ tile:", tile);
     return computeTileAtZoomLevel(tile);
   });
   // If the camera is zoomed out to a level below 18, don't add any polylines
@@ -123,12 +128,17 @@ function onCameraChanged(viewer) {
     if (!primitiveCollectionMap.has(tileId)) {
       // Fetch data for new visible tile
       const fetchDataPromise = limit(() =>
-      Promise.all([
-        fetchDataForTile(tile, zoomLevel, "cartesian"), // Assuming fetchDataForTile can be parameterized to fetch different types of data
-        fetchPolesData(tile,zoomLevel) // Fetch pole data
-      ])
-        // fetchDataForTile(tile, zoomLevel, "cartesian")
-          .then(([tileData, polesData]) => {
+        Promise.all([
+          fetchDataForTile(tile, zoomLevel, "cartesian"), // Assuming fetchDataForTile can be parameterized to fetch different types of data
+          fetchPolesData(tile, zoomLevel), // Fetch pole data
+          fetchMGCsData(tile, zoomLevel),// Fetch MGC data
+          fetchVIsData(tile,zoomLevel),// Fetch VIs data
+        ])
+          // fetchDataForTile(tile, zoomLevel, "cartesian")
+          .then(([tileData, polesData, mgcData,newData]) => {
+           
+           // Ensure mgcData is the expected object with a cartesian property
+    ;
             if (tileData && tileData.length > 0) {
               // Group conductors by BayId
               const bayGroups = tileData.reduce((acc, conductor) => {
@@ -142,9 +152,10 @@ function onCameraChanged(viewer) {
               Object.entries(bayGroups).forEach(([bayId, conductors]) => {
                 // Draw individual splines for each conductor
                 conductors.forEach((conductor) => {
+                  console.log("🚀 ~ conductors.forEach ~ conductor:", conductor + tileId);
                   const { conductorId, cartesian, color } = conductor;
                   addSplineForPoints(
-                    tileId,
+                    tileId, 
                     conductorId,
                     cartesian,
                     color,
@@ -154,7 +165,7 @@ function onCameraChanged(viewer) {
                   );
                 });
                 if (polesData && polesData.length > 0) {
-                  polesData.forEach(pole => {
+                  polesData.forEach((pole) => {
                     drawPole(
                       zoomLevel,
                       tile,
@@ -162,10 +173,32 @@ function onCameraChanged(viewer) {
                       viewer,
                       primitiveCollectionMap,
                       primitiveMap
-                    )
+                    );
                   });
                 }
-                
+                if (mgcData && mgcData.length > 0) {
+                  mgcData.forEach((mgc) => {
+                    drawMGC(
+                      tile,
+                      mgc,
+                      viewer,
+                      primitiveCollectionMap,
+                      primitiveMap
+                    );
+                  });
+                }
+                if (newData && newData.length > 0) {
+                  newData.forEach((vi) => {
+                    createAlert(
+                      tile,
+                      vi,
+                      viewer,
+                      primitiveCollectionMap,
+                      primitiveMap
+                    );
+                  });
+                }
+            
                 if (conductors.length > 1) {
                   const firstPoints = conductors.map(
                     (conductor) => conductor.cartesian[0]
@@ -203,6 +236,8 @@ function onCameraChanged(viewer) {
       fetchDataPromises.push(fetchDataPromise);
     }
   });
+    console.log("🚀 ~ tilesAtZoomLevel.forEach ~ newVisibleTileIds:", newVisibleTileIds)
+    console.log("🚀 ~ tilesAtZoomLevel.forEach ~ newVisibleTileIds:", newVisibleTileIds)
   // Handle all fetch data promises concurrently
   Promise.all(fetchDataPromises).catch((error) => {
     console.error("Error fetching tile data:", error);
@@ -215,95 +250,6 @@ function onCameraChanged(viewer) {
     viewer
   );
 }
-
-// function addCrossarms(tileId, points, viewer, primitiveCollectionMap, primitiveMap, heightTolerance = 0.2) {
-//   // Convert Cartesian coordinates to Cartographic to get heights
-//   const cartographicPoints = points.map(point =>
-//     Cesium.Cartographic.fromCartesian(new Cesium.Cartesian3(point.x, point.y, point.z))
-//   );
-
-//   // Group points based on height similarity
-//   let groupedPoints = [];
-//   cartographicPoints.forEach(point => {
-//     let addedToGroup = false;
-//     for (let group of groupedPoints) {
-//       if (Math.abs(group[0].height - point.height) <= heightTolerance) {
-//         group.push(point);
-//         addedToGroup = true;
-//         break;
-//       }
-//     }
-//     if (!addedToGroup) {
-//       groupedPoints.push([point]);
-//     }
-//   });
-
-//   // Function to order points within each group using the Nearest Neighbor heuristic
-//   function orderPoints(points) {
-//     if (points.length <= 1) {
-//       // If there is only one point or none, no further action is needed.
-//       return points;
-//     }
-
-//     // Sort points by the x-coordinate.
-//     const sortedPoints = points.sort((a, b) => a.x - b.x);
-
-//     // Return the first and last points in the sorted array as the endpoints
-//     const endpoints = [sortedPoints[0], sortedPoints[sortedPoints.length - 1]];
-//     return endpoints;
-//   }
-
-//   // Convert Cartographic back to Cartesian3 for each group and draw lines
-//   groupedPoints.forEach((group, index) => {
-//     if (group.length > 1) {
-//       // Order the points in the group
-//       const orderedGroup = orderPoints(group);
-
-//       // Ensure group has at least two points to draw a line
-//       const crossarmId = `crossarm-${index}`;
-//       // Check if a primitive for this index already exists and remove it
-//       const existingPrimitive = primitiveMap.get(crossarmId);
-//       if (existingPrimitive) {
-//         viewer.scene.primitives.remove(existingPrimitive);
-//       }
-
-//       // Convert ordered cartographic points back to Cartesian3
-//       const positions = orderedGroup.map(cartographicPoint =>
-//         Cesium.Cartesian3.fromRadians(cartographicPoint.longitude, cartographicPoint.latitude, cartographicPoint.height)
-//       );
-//       console.log("🚀 ~ groupedPoints.forEach ~ positions:", positions)
-
-//       // Create a polyline geometry for the group
-//       const polylineGeometry = new Cesium.PolylineGeometry({
-//         positions: positions,
-//         width: 7, // Adjust width as needed
-//         vertexFormat: Cesium.PolylineColorAppearance.VERTEX_FORMAT,
-//       });
-
-//       const geometryInstance = new Cesium.GeometryInstance({
-//         geometry: polylineGeometry,
-//         attributes: {
-//           color: Cesium.ColorGeometryInstanceAttribute.fromColor(Cesium.Color.ORANGE), // Customize the color if needed
-//         },
-//       });
-
-//       // Create the primitive for the polyline and add it to the scene
-//       const polylinePrimitive = new Cesium.Primitive({
-//         geometryInstances: [geometryInstance],
-//         appearance: new Cesium.PolylineColorAppearance({
-//           translucent: false,
-//         }),
-//       });
-
-//       // Add the new primitive to the array and update the map
-//       const crossarmPrimitiveArray = getOrCreatePrimitiveArrayForTile(tileId, primitiveMap);
-//       crossarmPrimitiveArray.push(polylinePrimitive);
-//       primitiveCollectionMap.set(tileId, crossarmPrimitiveArray);
-
-//       viewer.scene.primitives.add(polylinePrimitive);
-//     }
-//   });
-// }
 
 function addCrossarms(
   tileId,
@@ -411,8 +357,7 @@ let lastPickedPrimitiveOriginalColor = null;
 
 function resetLastPickedPrimitiveColor() {
   if (lastPickedPrimitive && lastPickedPrimitiveOriginalColor) {
-    lastPickedPrimitive.appearance.material.uniforms.color =
-      lastPickedPrimitiveOriginalColor;
+    lastPickedPrimitive.appearance.material.uniforms.color = lastPickedPrimitiveOriginalColor;
   }
 }
 
@@ -443,16 +388,7 @@ function createDescriptionHtml(conductorInfo) {
  `;
 }
 {
-  /* <div id="tabs">2023-12-11 13:03:25
-    <dl>
-      <dt><strong>Conductor:</strong></dt>
-      <dd><strong>Conductor Id:</strong> ${conductorInfo.ConductorId}</dd>
-      <dd><strong>Conductor Length:</strong> ${conductorInfo.Conductor_Length}</dd>
-      <dt><strong>Bay:</strong></dt>
-      <dd><strong>Bay ID:</strong> ${conductorInfo.Bay_Id}</dd>
-      <dd><strong>Voltage:</strong> ${conductorInfo.Voltage}</dd>
-    </dl>
-  </div> */
+ 
 }
 function removeConductorPoints(conductorId) {
   const pointsToRemove = viewer.entities.values.filter((entity) =>
@@ -502,38 +438,47 @@ function createPointEntity(conductorId, index, point) {
 function highlightConductor(primitive) {
   resetLastPickedPrimitiveColor();
   lastPickedPrimitive = primitive;
-  lastPickedPrimitiveOriginalColor =
-    primitive.appearance.material.uniforms.color.clone();
+  lastPickedPrimitiveOriginalColor = primitive.appearance.material.uniforms.color.clone();
   primitive.appearance.material.uniforms.color = Cesium.Color.YELLOW; // Highlight color
 }
 /**Highlight selected pole */
 function highlightPole(primitive) {
   resetLastPickedPrimitiveColor();
   lastPickedPrimitive = primitive;
-  lastPickedPrimitiveOriginalColor =
-    primitive.appearance.material.uniforms.color.clone();
+  lastPickedPrimitiveOriginalColor = primitive.appearance.material.uniforms.color.clone();
   primitive.appearance.material.uniforms.color = Cesium.Color.YELLOW; // Highlight color for poles
 }
-
-// function resetLastPickedPrimitiveColor() {
-//   if (lastPickedPrimitive && lastPickedPrimitiveOriginalColor) {
-//       lastPickedPrimitive.appearance.material.uniforms.color = lastPickedPrimitiveOriginalColor;
-//       lastPickedPrimitive = null;
-//       lastPickedPrimitiveOriginalColor = null;
-//   }
+/**Highlight selected mgc */
+function highlightMGC(primitive) {
+  // console.log(primitive);
+  resetLastPickedPrimitiveColor();
+  lastPickedPrimitive = primitive;
+  lastPickedPrimitiveOriginalColor = primitive.appearance.material.uniforms.color.clone();
+  primitive.appearance.material.uniforms.color = Cesium.Color.YELLOW; // Highlight color for poles
+}
+/**Highlight selectet VI */
+// function highlightVI(primitive) {
+//   console.log(primitive);
+//   resetLastPickedPrimitiveColor();
+//   lastPickedPrimitive = primitive;
+//   lastPickedPrimitiveOriginalColor = primitive.appearance.material.color.clone();
+//   primitive.appearance.material.uniforms.color = Cesium.Color.YELLOW; // Highlight color for poles
 // }
+
 let currentConductorId = null;
 viewer.screenSpaceEventHandler.setInputAction(async function onLeftClick(
   movement
 ) {
-  const pickedObject = viewer.scene.pick(movement.position);
+  const pickedObject = viewer.scene.pick(movement.position);      
+   console.log(pickedObject)
 
   if (
     Cesium.defined(pickedObject) &&
     pickedObject.primitive &&
     pickedObject.id
   ) {
-    const combinedId = JSON.parse(pickedObject.id); // Parse the JSON string to get the object
+    // Parse the JSON string to get the object    
+    const combinedId = JSON.parse(pickedObject.id); 
 
     if (
       typeof pickedObject.id._id === "string" &&
@@ -563,7 +508,21 @@ viewer.screenSpaceEventHandler.setInputAction(async function onLeftClick(
           id: pickedObject.id,
         });
       }
-    } else {
+    } else  if (
+      typeof pickedObject.id === "string" &&
+      pickedObject.id.startsWith(`"mgc_`)
+    ) {
+      // console.log("mgs is working"+JSON.stringify(pickedObject.primitive.providedProperties, null, 2))
+       // Add your code to handle pole selection
+       highlightMGC(pickedObject.primitive);
+      viewer.selectedEntity = new Cesium.Entity({
+        name: `MGC Details`,
+        description: createMGCDescriptionHtml(pickedObject.primitive.providedProperties),
+        id: pickedObject.id,
+      });
+       
+       
+    }else {
       try {
         if (currentConductorId) {
           removeConductorPoints(currentConductorId);
@@ -675,8 +634,7 @@ viewer.screenSpaceEventHandler.setInputAction(function onRightClick(movement) {
 
   // Reset the appearance of the last picked entity
   if (lastPickedPrimitive && lastPickedPrimitiveOriginalColor) {
-    lastPickedPrimitive.appearance.material.uniforms.color =
-      lastPickedPrimitiveOriginalColor;
+    lastPickedPrimitive.appearance.material.uniforms.color = lastPickedPrimitiveOriginalColor;
     lastPickedPrimitive = undefined;
     lastPickedPrimitiveOriginalColor = undefined;
   }
@@ -861,3 +819,29 @@ function createPoleDescriptionHtml(poleInfo) {
     </table>
   `;
 }
+// Function to create HTML content for displaying pole information
+function createMGCDescriptionHtml(mgcInfo) {
+  // Modify this function to use poleInfo data
+  return `
+    <table class="cesium-infoBox-defaultTable">
+      <tbody>
+        <tr><th>Bay ID:</th><td>${mgcInfo.Bay_Id}</td></tr>
+        <tr><th>Captured Date:</th><td>${mgcInfo.Captured_Date}</td></tr>
+        <tr><th>Captured Time</th><td>${mgcInfo.Captured_Time}</td></tr>
+        <tr><th>Conductor Id:</th><td>${mgcInfo.ConductorId}</td></tr>
+        <tr><th>Minimum Ground Clearance</th><td>${mgcInfo.Minimum_Ground_Clearance}</td></tr>
+        <tr><th>Voltage:</th><td>${mgcInfo.Voltage}</td></tr>
+        
+        <!-- Add more pole attributes here -->
+      </tbody>
+    </table>
+  `;
+}
+
+
+viewer.screenSpaceEventHandler.setInputAction(async function onLeftClick(
+  movement
+) {
+  const pickedObject = viewer.scene.pick(movement.position);      
+  //  console.log(pickedObject);
+  })

@@ -30,4 +30,5 @@ async function splitJsonFileByLine(filePath, outputBasePath, linesPerFile) {
 
 
 // Example usage
-splitJsonFileByLine('../../data/conductors_voltage.json', '../../data/splitFile/conductors', 100000); // Splits into files with 1000 records each
+splitJsonFileByLine('../../data/3DVegetationIntrusions_ClearanceBand.json', '../../data/splitFile/VI/VI', 100000); // Splits into files with 100000 records each
+// splitJsonFileByLine('../../data/3DMinimumGroundClearance_Voltage.json', '../../data/splitFile/MGC/MGC', 100000); // Splits into files with 100000 records each

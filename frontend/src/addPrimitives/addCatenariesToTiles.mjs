@@ -38,6 +38,7 @@ export function addSplineForPoints(
   primitiveCollectionMap,
   viewer
 ) {
+  // console.log("🚀 ~ tileId:", tileId)
   // Check if a primitive already exists for this conductorId, and if so, remove it
   const existingPrimitive = primitiveMap.get(conductorId);
   if (existingPrimitive) {
@@ -55,6 +56,7 @@ export function addSplineForPoints(
     times: positions.map((_, index) => index),
     points: positions,
   });
+  
 
   // Sample the spline at various intervals to get positions along the curve
   const sampledPositions = [];
@@ -98,8 +100,10 @@ export function addSplineForPoints(
 
   // Add the primitive to the scene
   viewer.scene.primitives.add(polylinePrimitive);
+
   // Store the polyline primitive in the primitive map by conductorId
   primitiveMap.set(conductorId, polylinePrimitive);
+  
 }
 
 // Function to fetch poles data from the server
@@ -129,188 +133,286 @@ export async function drawPole(
 
     // Iterate through the fetched poles data
     // polesData.forEach((pole) => {
-      // Extract start and end coordinates for the pole
-      const startCoordinate = pole.coordinates[0];
-      const endCoordinate = pole.coordinates[1];
-      const poleId = pole.Pole_Id;
-      // Check if a primitive already exists for this conductorId, and if so, remove it
-      const existingPrimitive = primitiveMap.get(poleId);
-      if (existingPrimitive) {
-        viewer.scene.primitives.remove(existingPrimitive);
-      }
-      // Convert color to string
-      const color = Cesium.Color.fromCssColorString(pole.poleColor);
-      // Create point entities for start and end points
+    // Extract start and end coordinates for the pole
+    const startCoordinate = pole.coordinates[0];
+    const endCoordinate = pole.coordinates[1];
+    const poleId = pole.Pole_Id;
+    // Check if a primitive already exists for this conductorId, and if so, remove it
+    const existingPrimitive = primitiveMap.get(poleId);
+    if (existingPrimitive) {
+      viewer.scene.primitives.remove(existingPrimitive);
+    }
+    // Convert color to string
+    const color = Cesium.Color.fromCssColorString(pole.poleColor);
+    // Create point entities for start and end points
 
-      // Create start and end Cartesian3 positions
-      const start = Cesium.Cartesian3.fromDegrees(
-        startCoordinate.Longitude,
-        startCoordinate.Latitude,
-        startCoordinate.Elevation
-      );
-      const end = Cesium.Cartesian3.fromDegrees(
-        endCoordinate.Longitude,
-        endCoordinate.Latitude,
-        endCoordinate.Elevation
-      );
+    // Create start and end Cartesian3 positions
+    const start = Cesium.Cartesian3.fromDegrees(
+      startCoordinate.Longitude,
+      startCoordinate.Latitude,
+      startCoordinate.Elevation
+    );
+    const end = Cesium.Cartesian3.fromDegrees(
+      endCoordinate.Longitude,
+      endCoordinate.Latitude,
+      endCoordinate.Elevation
+    );
 
-      // Calculate the length of the cylinder (vertical distance between start and end points)
-      const length = Math.abs(
-        startCoordinate.Elevation - endCoordinate.Elevation
-      );
+    // Calculate the length of the cylinder (vertical distance between start and end points)
+    const length = Math.abs(
+      startCoordinate.Elevation - endCoordinate.Elevation
+    );
 
-      // Calculate the midpoint between start and end points
-      const midpoint = Cesium.Cartesian3.midpoint(
-        start,
-        end,
-        new Cesium.Cartesian3()
-      );
+    // Calculate the midpoint between start and end points
+    const midpoint = Cesium.Cartesian3.midpoint(
+      start,
+      end,
+      new Cesium.Cartesian3()
+    );
 
-      // Calculate the model matrix to position and orient the cylinder
-      const modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(
-        midpoint,
-        Cesium.Ellipsoid.WGS84,
-        Cesium.Transforms.NORTH_UP_EAST
-      );
+    // Calculate the model matrix to position and orient the cylinder
+    const modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(
+      midpoint,
+      Cesium.Ellipsoid.WGS84,
+      Cesium.Transforms.NORTH_UP_EAST
+    );
 
-      // Create the cylinder geometry
-      const geometry = new Cesium.CylinderGeometry({
-        length: length,
-        topRadius: 0.2,
-        bottomRadius: 0.35,
-        vertexFormat: Cesium.VertexFormat.POSITION_AND_NORMAL,
-      });
+    // Create the cylinder geometry
+    const geometry = new Cesium.CylinderGeometry({
+      length: length,
+      topRadius: 0.2,
+      bottomRadius: 0.35,
+      vertexFormat: Cesium.VertexFormat.POSITION_AND_NORMAL,
+    });
 
-      // Create the geometry instance
-      const instance = new Cesium.GeometryInstance({
-        geometry: geometry,
-        modelMatrix: modelMatrix,
-        attributes: {
-          color: Cesium.ColorGeometryInstanceAttribute.fromColor(color),
-        },
-        id: JSON.stringify({ tileId, poleId }),
-      });
+    // Create the geometry instance
+    const instance = new Cesium.GeometryInstance({
+      geometry: geometry,
+      modelMatrix: modelMatrix,
+      attributes: {
+        color: Cesium.ColorGeometryInstanceAttribute.fromColor(color),
+      },
+      id: JSON.stringify({ tileId, poleId }),
+    });
 
-      // Create the cylinder primitive
-      const cylinderPrimitive = viewer.scene.primitives.add(
-        new Cesium.Primitive({
-          geometryInstances: instance,
-          appearance: new Cesium.MaterialAppearance({
-            material: Cesium.Material.fromType("Color", {
-              color: color,
-            }),
+    // Create the cylinder primitive
+    const cylinderPrimitive = viewer.scene.primitives.add(
+      new Cesium.Primitive({
+        geometryInstances: instance,
+        appearance: new Cesium.MaterialAppearance({
+          material: Cesium.Material.fromType("Color", {
+            color: color,
           }),
-        })
-      );
-      const polePrimitiveArray = getOrCreatePrimitiveArrayForTile(
-        tileId,
-        primitiveMap
-      );
+        }),
+      })
+    );
+    const polePrimitiveArray = getOrCreatePrimitiveArrayForTile(
+      tileId,
+      primitiveMap
+    );
 
-      polePrimitiveArray.push(cylinderPrimitive); // Add the new primitive to the array
-      primitiveCollectionMap.set(tileId, polePrimitiveArray); // Make sure this line exists
-      // Store the polyline primitive in the primitive map by conductorId
-      primitiveMap.set(poleId, cylinderPrimitive);
+    polePrimitiveArray.push(cylinderPrimitive); // Add the new primitive to the array
+    primitiveCollectionMap.set(tileId, polePrimitiveArray); // Make sure this line exists
+    // Store the polyline primitive in the primitive map by conductorId
+    primitiveMap.set(poleId, cylinderPrimitive);
     // });
   } catch (error) {
     console.error("Error fetching or creating pole cylinders:", error);
   }
 }
-//// // Function to create poles based on the fetched data
-// export async function createPoles(zoomLevel, tile, viewer,primitiveCollectionMap,primitiveMap) {
-//   try {
-//     // Fetch poles data from the server
-//     const polesData = await fetchPolesData(tile, zoomLevel);
-//     const tileId = `${tile._x}-${tile._y}-${tile._level}`;
 
-//     // Iterate through the fetched poles data
-//     polesData.forEach((pole) => {
-//       // Extract start and end coordinates for the pole
-//       const startCoordinate = pole.coordinates[0];
-//       const endCoordinate = pole.coordinates[1];
-//       const poleId = pole.Pole_Id;
-//       // Check if a primitive already exists for this conductorId, and if so, remove it
-// const existingPrimitive = primitiveMap.get(poleId);
-// if (existingPrimitive) {
-//   viewer.scene.primitives.remove(existingPrimitive);
-// }
-//       // Convert color to string
-//       const color = Cesium.Color.fromCssColorString(pole.poleColor);
-//       // Create point entities for start and end points
+export async function fetchMGCsData(tile, zoomLevel) {
+  const response = await fetch(
+    `http://localhost:3000/getMGCByTile/${zoomLevel}/${tile._x}/${tile._y}`
+  );
+  if (!response.ok) {
+    throw new Error("Failed to fetch poles data");
+  }
+  return response.json();
+}
+// Function to create MGC
+export async function drawMGC(
+  tile,
+  mgc,
+  viewer,
+  primitiveCollectionMap,
+  primitiveMap
+) {
+  try {
+    const tileId = `${tile._x}-${tile._y}-${tile._level}`;
 
-//       // Create start and end Cartesian3 positions
-//       const start = Cesium.Cartesian3.fromDegrees(
-//         startCoordinate.Longitude,
-//         startCoordinate.Latitude,
-//         startCoordinate.Elevation
-//       );
-//       const end = Cesium.Cartesian3.fromDegrees(
-//         endCoordinate.Longitude,
-//         endCoordinate.Latitude,
-//         endCoordinate.Elevation
-//       );
+    const mgcId = `mgc_${mgc.ConductorId}`;
+    // Check if a primitive already exists for this mgcId, and if so, remove it
+    const existingPrimitive = primitiveMap.get(mgcId);
+    if (existingPrimitive) {
+      mgc = { ...viewer.scene.primitives.providedProperties, ...mgc };
+      viewer.scene.primitives.remove(existingPrimitive);
+    }
 
-//       // Calculate the length of the cylinder (vertical distance between start and end points)
-//       const length = Math.abs(
-//         startCoordinate.Elevation - endCoordinate.Elevation
-//       );
+    // Convert color to string and add transparency
+    console.log("🚀 ~ mgc.color:", mgc.color)
+    const color = Cesium.Color.fromCssColorString(mgc.color).withAlpha(0.2);
+    // Create start and end Cartesian3 positions
+    const start = Cesium.Cartesian3.fromDegrees(
+      mgc.coordinates[0].Longitude,
+      mgc.coordinates[0].Latitude,
+      mgc.coordinates[0].Elevation
+    );
+    const end = Cesium.Cartesian3.fromDegrees(
+      mgc.coordinates[1].Longitude,
+      mgc.coordinates[1].Latitude,
+      mgc.coordinates[1].Elevation
+    );
 
-//       // Calculate the midpoint between start and end points
-//       const midpoint = Cesium.Cartesian3.midpoint(
-//         start,
-//         end,
-//         new Cesium.Cartesian3()
-//       );
+    // Calculate the length of the cylinder (vertical distance between start and end points)
+    const length = Math.abs(
+      mgc.coordinates[0].Elevation - mgc.coordinates[1].Elevation
+    );
 
-//       // Calculate the model matrix to position and orient the cylinder
-//       const modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(
-//         midpoint,
-//         Cesium.Ellipsoid.WGS84,
-//         Cesium.Transforms.NORTH_UP_EAST
-//       );
+    // Calculate the midpoint between start and end points
+    const midpoint = Cesium.Cartesian3.midpoint(
+      start,
+      end,
+      new Cesium.Cartesian3()
+    );
 
-//       // Create the cylinder geometry
-//       const geometry = new Cesium.CylinderGeometry({
-//         length: length,
-//         topRadius: 0.2,
-//         bottomRadius: 0.35,
-//         vertexFormat: Cesium.VertexFormat.POSITION_AND_NORMAL,
-//       });
+    // Calculate the model matrix to position and orient the cylinder
+    const modelMatrix = Cesium.Transforms.eastNorthUpToFixedFrame(
+      midpoint,
+      Cesium.Ellipsoid.WGS84,
+      Cesium.Transforms.NORTH_UP_EAST
+    );
+    // Create the cylinder geometry
+    const geometry = new Cesium.CylinderGeometry({
+      length: length,
+      topRadius: 0.1,
+      bottomRadius: 0.1,
+      vertexFormat: Cesium.VertexFormat.POSITION_AND_NORMAL,
+    });
 
-//       // Create the geometry instance
-//       const instance = new Cesium.GeometryInstance({
-//         geometry: geometry,
-//         modelMatrix: modelMatrix,
-//         attributes: {
-//           color: Cesium.ColorGeometryInstanceAttribute.fromColor(color),
-//         },
-//         id:JSON.stringify({ tileId, poleId }),
+    // Create the geometry instance
+    const instance = new Cesium.GeometryInstance({
+      geometry: geometry,
+      modelMatrix: modelMatrix,
+      attributes: {
+        color: Cesium.ColorGeometryInstanceAttribute.fromColor(color),
+      },
+      id: JSON.stringify(mgcId),
+    });
 
-//       });
+    // Create the cylinder primitive
+    const linePrimitive = viewer.scene.primitives.add(
+      new Cesium.Primitive({
+        geometryInstances: instance,
+        appearance: new Cesium.MaterialAppearance({
+          material: Cesium.Material.fromType("Color", {
+            color: color,
+          }),
+        }),
+      })
+    );
+    const { Coordinates, ...remainingProperties } = mgc;
+    linePrimitive.providedProperties = { ...remainingProperties };
+    // viewer.scene.primitives.add(linePrimitive);
 
-//       // Create the cylinder primitive
-//       const cylinderPrimitive = viewer.scene.primitives.add(
-//         new Cesium.Primitive({
-//           geometryInstances: instance,
-//           appearance: new Cesium.MaterialAppearance({
-//             material: Cesium.Material.fromType("Color", {
-//               color: color,
-//             }),
-//           }),
-//         })
-//       );
-//       const polePrimitiveArray = getOrCreatePrimitiveArrayForTile(
-//         tileId,
-//         primitiveMap
-//       );
+    // Get or create the array for the tileId and add the primitive
+    const mgcPrimitiveArray = getOrCreatePrimitiveArrayForTile(
+      tileId,
+      primitiveCollectionMap
+    );
+    mgcPrimitiveArray.push(linePrimitive);
+    primitiveCollectionMap.set(tileId, mgcPrimitiveArray);
 
-//       polePrimitiveArray.push(cylinderPrimitive); // Add the new primitive to the array
-//   primitiveCollectionMap.set(tileId, polePrimitiveArray); // Make sure this line exists
-//   // Store the polyline primitive in the primitive map by conductorId
-//   primitiveMap.set(poleId, cylinderPrimitive);
+    // Store a reference to the primitive with its mgcId
+    primitiveMap.set(mgcId, linePrimitive);
+  } catch (error) {
+    console.error("Error fetching or creating mgc line:", error);
+  }
+}
 
-//     });
-//   } catch (error) {
-//     console.error("Error fetching or creating pole cylinders:", error);
-//   }
-// }
+// fetch data for vegetation intrusions
+export async function fetchVIsData(tile, zoomLevel) {
+  const response = await fetch(
+    `http://localhost:3000/getVIByTile/${zoomLevel}/${tile._x}/${tile._y}`
+  );
+  if (!response.ok) {
+    throw new Error("Failed to fetch vegetation intrusion data");
+  }
+  const data = await response.json(); // Correctly await the JSON data
+
+  return data;
+}
+
+// Create alert icon for intrusion
+export async function createAlert(
+  tile,
+  vegetationIntrusion,
+  viewer,
+  primitiveCollectionMap,
+  primitiveMap
+) {
+  try{
+    const tileId = `${tile._x}-${tile._y}-${tile._level}`;
+
+    const viId = vegetationIntrusion.Intrusion_Id;
+    // Check if a primitive already exists for this viId, and if so, remove it
+   
+    const existingPrimitive = primitiveMap.get(viId);
+    if (existingPrimitive) {
+      vegetationIntrusion = {...viewer.scene.primitives.providedProperties,...vegetationIntrusion};
+      viewer.scene.primitives.remove(existingPrimitive);
+    }
+     
+    const billboards = viewer.scene.primitives.add(new Cesium.BillboardCollection());
+
+      if (vegetationIntrusion.Coordinates && vegetationIntrusion.Coordinates.length > 0) {
+        const coord = vegetationIntrusion.Coordinates[0]; // Assuming we use the first coordinate set
+        const position = Cesium.Cartesian3.fromDegrees(
+          parseFloat(coord.Longitude),
+          parseFloat(coord.Latitude),
+          parseFloat(coord.Elevation)
+        );
+        
+        // //add pointEntity at position
+        // viewer.entities.add({
+        //   position: position,
+        //   point: {
+        //   color: Cesium.Color.YELLOW,
+        //   pixelSize: 2,
+        //   show: true, // Set to visible when created
+        //   disableDepthTestDistance: Number.POSITIVE_INFINITY,
+        //   },
+        // });
+
+      
+        billboards.add({
+          id:viId,
+          position:position ,
+          image: "assets/icons/41392.svg", // URL to your alert icon image
+          scale: 0.3, // Adjust the scale as needed
+          pixelOffset: new Cesium.Cartesian2(0, 0), // Offset in pixels
+          eyeOffset: new Cesium.Cartesian3(0.0, 0.0, 0.0), // Adjust to move the billboard in front of or behind other billboards
+          horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+          verticalOrigin: Cesium.VerticalOrigin.BOTTOM, // Adjust to anchor at the bottom or center
+        });
+        
+      }
+    const { Coordinates, ...remainingProperties } = vegetationIntrusion;
+    billboards.providedProperties = { ...remainingProperties };
+    console.log("🚀 ~ billboards:", billboards)
+    // viewer.scene.primitives.add(billboards);
+
+    // Get or create the array for the tileId and add the primitive
+    const viPrimitiveArray = getOrCreatePrimitiveArrayForTile(
+      tileId,
+      primitiveCollectionMap
+    );
+    viPrimitiveArray.push(billboards);
+    primitiveCollectionMap.set(tileId, viPrimitiveArray);
+
+    // Store a reference to the primitive with its mgcId
+    primitiveMap.set(viId, billboards);
+  }catch(e){
+    console.error("Error fetching or creating vegetation intrusion:", e);
+  }
+}

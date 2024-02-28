@@ -46,6 +46,19 @@ const config = {
         test: /\.(png|gif|jpg|jpeg|svg|xml|json)$/,
         use: ["url-loader"],
       },
+      {
+        test: /\.(png|gif|jpg|jpeg|svg|xml|json)$/,
+        use: [
+          {
+            loader: 'url-loader',
+            options: {
+              limit: 8192, // Images smaller than 8kb are inlined as data URLs.
+              fallback: 'file-loader', // Images larger than 8kb are handled by file-loader.
+              name: 'images/[name].[ext]', // Output path for images handled by file-loader.
+            }
+          }
+        ]
+      },
     ],
   },
   plugins: [
@@ -63,7 +76,11 @@ const config = {
         { from: path.join(cesiumSource, "Assets"), to: "Assets" },
         { from: path.join(cesiumSource, "Widgets"), to: "Widgets" },
         { from: path.join(cesiumSource, "ThirdParty"), to: "ThirdParty" },
-        
+        {
+          from: path.resolve(__dirname, "./public/assets/icons"), // Adjust if the path is different
+          to: "assets/icons",
+        },
+      
         // {
         //   from: "../mercator-transforms-master",
         //   to: "mercator-transforms-master",
@@ -72,7 +89,7 @@ const config = {
     }),
     new webpack.DefinePlugin({
       // Define relative base path in cesium for loading assets
-      CESIUM_BASE_URL: JSON.stringify(""),
+      CESIUM_BASE_URL: JSON.stringify("/"),
     }),
     new NodePolyfillPlugin(),
   ],
@@ -83,7 +100,7 @@ const config = {
     // hot: true,  // Enable hot module replacement
   },
   resolve: {
-    extensions: [".js", ".mjs", ".json"],
+    extensions: [".js", ".mjs", ".json",".png",".svg"],
     modules: ["node_modules"],
     alias: {
       // CesiumJS module name
