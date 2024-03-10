@@ -1,6 +1,5 @@
 import fs from "fs";
 import path from "path";
-import { Cartesian3 } from "cesium";
 import { mkdir } from "fs/promises";
 import { fileURLToPath } from "url";
 import * as mercator from "../../mercator-transforms-master/src/index.mjs";
@@ -24,20 +23,14 @@ async function createDirectory(path) {
         }
     }
 }
-function toCartesian3(latitude, longitude, elevation) {
-    return Cartesian3.fromDegrees(
-        parseFloat(longitude),
-        parseFloat(latitude),
-        parseFloat(elevation)
-    );
-}
+
 const directoryPath = path.join(
     __dirname,
     "..",
     "..",
     "data",
     "outputs",
-    "mgc",
+    "MGC",
     `${ZOOM_LEVEL}`
 );
 

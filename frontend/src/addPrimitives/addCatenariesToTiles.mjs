@@ -25,7 +25,7 @@ export async function fetchDataForTile(tile, zoomLevel, dataType = "full") {
     const data = await response.json();
     return data;
   } catch (error) {
-    console.error(`Failed to fetch ${dataType} data for tile:`, error);
+    console.error(`Failed to fetch ${dataType} data for ${tile._x}:`, error);
     return null;
   }
 }
@@ -56,7 +56,6 @@ export function addSplineForPoints(
     times: positions.map((_, index) => index),
     points: positions,
   });
-  
 
   // Sample the spline at various intervals to get positions along the curve
   const sampledPositions = [];
@@ -103,7 +102,6 @@ export function addSplineForPoints(
 
   // Store the polyline primitive in the primitive map by conductorId
   primitiveMap.set(conductorId, polylinePrimitive);
-  
 }
 
 // Function to fetch poles data from the server
@@ -250,7 +248,7 @@ export async function drawMGC(
     }
 
     // Convert color to string and add transparency
-    console.log("🚀 ~ mgc.color:", mgc.color)
+    console.log("🚀 ~ mgc.color:", mgc.color);
     const color = Cesium.Color.fromCssColorString(mgc.color).withAlpha(0.2);
     // Create start and end Cartesian3 positions
     const start = Cesium.Cartesian3.fromDegrees(
@@ -351,68 +349,106 @@ export async function createAlert(
   primitiveCollectionMap,
   primitiveMap
 ) {
-  try{
+  try {
     const tileId = `${tile._x}-${tile._y}-${tile._level}`;
 
-    const viId = vegetationIntrusion.Intrusion_Id;
+    const viId = `vi_${vegetationIntrusion.Intrusion_Id}`;
     // Check if a primitive already exists for this viId, and if so, remove it
-   
+
     const existingPrimitive = primitiveMap.get(viId);
     if (existingPrimitive) {
-      vegetationIntrusion = {...viewer.scene.primitives.providedProperties,...vegetationIntrusion};
+      vegetationIntrusion = {
+        ...viewer.scene.primitives.providedProperties,
+        ...vegetationIntrusion,
+      };
       viewer.scene.primitives.remove(existingPrimitive);
     }
-     
-    const billboards = viewer.scene.primitives.add(new Cesium.BillboardCollection());
 
-      if (vegetationIntrusion.Coordinates && vegetationIntrusion.Coordinates.length > 0) {
-        const coord = vegetationIntrusion.Coordinates[0]; // Assuming we use the first coordinate set
-        const position = Cesium.Cartesian3.fromDegrees(
-          parseFloat(coord.Longitude),
-          parseFloat(coord.Latitude),
-          parseFloat(coord.Elevation)
-        );
-        
-        // //add pointEntity at position
-        // viewer.entities.add({
-        //   position: position,
-        //   point: {
-        //   color: Cesium.Color.YELLOW,
-        //   pixelSize: 2,
-        //   show: true, // Set to visible when created
-        //   disableDepthTestDistance: Number.POSITIVE_INFINITY,
-        //   },
-        // });
+    // const billboards = viewer.scene.primitives.add(
+    //   new Cesium.BillboardCollection()
+    // );
 
+    const pointPrimitives = viewer.scene.primitives.add(
+      new Cesium.PointPrimitiveCollection()
+    );
+
+    if (
+      vegetationIntrusion.Coordinates &&
+      vegetationIntrusion.Coordinates.length > 0
+    ) {
+      const coord = vegetationIntrusion.Coordinates[0]; // Assuming we use the first coordinate set
+      const position = Cesium.Cartesian3.fromDegrees(
+        parseFloat(coord.Longitude),
+        parseFloat(coord.Latitude),
+        parseFloat(coord.Elevation)
+      );
+
+
+
+
+// // Create the geometry instance for the circle
+// const circleGeometry = new Cesium.EllipseGeometry({
+//     center: position,
+//     semiMajorAxis: 1, // Same as the radius for a circle
+//     semiMinorAxis: 1, // Same as the radius for a circle
+//     vertexFormat: Cesium.MaterialAppearance.MaterialSupport.TEXTURED.vertexFormat,
+// });
+
+// const geometryInstance = new Cesium.GeometryInstance({
+//     geometry: circleGeometry,
+// });
+
+// // Create a material for the circle
+// const material = new Cesium.Material.fromType('Color');
+// material.uniforms.color = new Cesium.Color(0.0, 1.0, 0.0, 0.5); // Semi-transparent red
+
+// // Create the ground primitive with the material
+// const circlePrimitive = new Cesium.GroundPrimitive({
+//     geometryInstances: geometryInstance,
+//     appearance: new Cesium.MaterialAppearance({
+//         material: material,
+//     }),
+// });
+
+// // Add the circle to the scene
+// viewer.scene.primitives.add(circlePrimitive);
+
+      const pointPrimitive = pointPrimitives.add({
+        position: position,
+        pixelSize: 10,
+        color: Cesium.Color.RED,
+        id: JSON.stringify(viId),
+      });
       
-        billboards.add({
-          id:viId,
-          position:position ,
-          image: "assets/icons/41392.svg", // URL to your alert icon image
-          scale: 0.3, // Adjust the scale as needed
-          pixelOffset: new Cesium.Cartesian2(0, 0), // Offset in pixels
-          eyeOffset: new Cesium.Cartesian3(0.0, 0.0, 0.0), // Adjust to move the billboard in front of or behind other billboards
-          horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-          verticalOrigin: Cesium.VerticalOrigin.BOTTOM, // Adjust to anchor at the bottom or center
-        });
-        
-      }
+        console.log("🚀 ~ pointPrimitive:", pointPrimitive);
+     
+    //     billboards.add({
+    //       id: JSON.stringify(viId),
+    //       position: position,
+    //       image: "assets/icons/circle.svg", // URL to your alert icon image
+    //       scale: 0.2, // Adjust the scale as needed
+    //       pixelOffset: new Cesium.Cartesian2(0, 0), // Offset in pixels
+    //       eyeOffset: new Cesium.Cartesian3(0.0, 0.0, 0.0), // Adjust to move the billboard in front of or behind other billboards
+    //       horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+    //       verticalOrigin: Cesium.VerticalOrigin.CENTER, // Adjust to anchor at the bottom or center
+    //     });
+    }
+
     const { Coordinates, ...remainingProperties } = vegetationIntrusion;
-    billboards.providedProperties = { ...remainingProperties };
-    console.log("🚀 ~ billboards:", billboards)
-    // viewer.scene.primitives.add(billboards);
+    pointPrimitives.providedProperties = { ...remainingProperties };
+    console.log("🚀 ~ pointPrimitives:", pointPrimitives);
 
     // Get or create the array for the tileId and add the primitive
     const viPrimitiveArray = getOrCreatePrimitiveArrayForTile(
       tileId,
       primitiveCollectionMap
     );
-    viPrimitiveArray.push(billboards);
+    viPrimitiveArray.push(pointPrimitives);
     primitiveCollectionMap.set(tileId, viPrimitiveArray);
 
     // Store a reference to the primitive with its mgcId
-    primitiveMap.set(viId, billboards);
-  }catch(e){
+    primitiveMap.set(viId, pointPrimitives);
+  } catch (e) {
     console.error("Error fetching or creating vegetation intrusion:", e);
   }
 }

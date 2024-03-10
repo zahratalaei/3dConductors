@@ -130,12 +130,14 @@ function onCameraChanged(viewer) {
       const fetchDataPromise = limit(() =>
         Promise.all([
           fetchDataForTile(tile, zoomLevel, "cartesian"), // Assuming fetchDataForTile can be parameterized to fetch different types of data
+          fetchDataForTile(tile, zoomLevel, "cartesian"), // Assuming fetchDataForTile can be parameterized to fetch different types of data
           fetchPolesData(tile, zoomLevel), // Fetch pole data
           fetchMGCsData(tile, zoomLevel),// Fetch MGC data
           fetchVIsData(tile,zoomLevel),// Fetch VIs data
         ])
           // fetchDataForTile(tile, zoomLevel, "cartesian")
           .then(([tileData, polesData, mgcData,newData]) => {
+           console.log("🚀 ~ .then ~ tileData:", tileData)
            
            // Ensure mgcData is the expected object with a cartesian property
     ;
@@ -356,9 +358,23 @@ let lastPickedPrimitive = null;
 let lastPickedPrimitiveOriginalColor = null;
 
 function resetLastPickedPrimitiveColor() {
-  if (lastPickedPrimitive && lastPickedPrimitiveOriginalColor) {
-    lastPickedPrimitive.appearance.material.uniforms.color = lastPickedPrimitiveOriginalColor;
-  }
+ if (lastPickedPrimitive && lastPickedPrimitiveOriginalColor) {
+   // Check if the primitive is a PointPrimitive
+   if (lastPickedPrimitive instanceof Cesium.PointPrimitive) {
+     // Directly reset the color property for PointPrimitive
+     lastPickedPrimitive.color = lastPickedPrimitiveOriginalColor;
+   } else if (
+     lastPickedPrimitive.appearance &&
+     lastPickedPrimitive.appearance.material
+   ) {
+     // For other primitives that have an appearance and material, reset the material color
+     lastPickedPrimitive.appearance.material.uniforms.color =
+       lastPickedPrimitiveOriginalColor;
+   }
+ }
+  // Clear the references after resetting the color
+  lastPickedPrimitive = null;
+  lastPickedPrimitiveOriginalColor = null;
 }
 
 async function fetchConductorInfo(tileId, conductorId, zoomLevel) {
@@ -457,13 +473,18 @@ function highlightMGC(primitive) {
   primitive.appearance.material.uniforms.color = Cesium.Color.YELLOW; // Highlight color for poles
 }
 /**Highlight selectet VI */
-// function highlightVI(primitive) {
-//   console.log(primitive);
-//   resetLastPickedPrimitiveColor();
-//   lastPickedPrimitive = primitive;
-//   lastPickedPrimitiveOriginalColor = primitive.appearance.material.color.clone();
-//   primitive.appearance.material.uniforms.color = Cesium.Color.YELLOW; // Highlight color for poles
-// }
+function highlightVI(primitive) {
+  resetLastPickedPrimitiveColor();
+  // Check if the primitive is a PointPrimitive
+  if (primitive instanceof Cesium.PointPrimitive) {
+    // Store the current primitive and its original color
+    lastPickedPrimitive = primitive;
+    lastPickedPrimitiveOriginalColor = primitive.color.clone();
+
+    // Change the color of the primitive to highlight it
+    primitive.color = Cesium.Color.YELLOW;
+  }
+}
 
 let currentConductorId = null;
 viewer.screenSpaceEventHandler.setInputAction(async function onLeftClick(
@@ -508,7 +529,7 @@ viewer.screenSpaceEventHandler.setInputAction(async function onLeftClick(
           id: pickedObject.id,
         });
       }
-    } else  if (
+    } else if (
       typeof pickedObject.id === "string" &&
       pickedObject.id.startsWith(`"mgc_`)
     ) {
@@ -522,7 +543,19 @@ viewer.screenSpaceEventHandler.setInputAction(async function onLeftClick(
       });
        
        
-    }else {
+    }else if (
+      typeof pickedObject.id === "string" &&
+      pickedObject.id.startsWith(`"vi_`)
+    ) {
+      highlightVI(pickedObject.primitive);
+       viewer.selectedEntity = new Cesium.Entity({
+         name: `Vegetation Intrusion Details`,
+         description: createVIDescriptionHtml(
+           pickedObject.collection.providedProperties
+         ),
+         id: pickedObject.id,
+       });
+    } else {
       try {
         if (currentConductorId) {
           removeConductorPoints(currentConductorId);
@@ -837,11 +870,83 @@ function createMGCDescriptionHtml(mgcInfo) {
     </table>
   `;
 }
-
-
+//vi discription
+function createVIDescriptionHtml(viInfo) {
+  // Modify this function to use poleInfo data
+  return `
+    <table class="cesium-infoBox-defaultTable">
+      <tbody>
+        <tr><th>Bay ID:</th><td>${viInfo.Intrusion_Id}</td></tr>
+        <tr><th>Voltage:</th><td>${viInfo.Voltage}</td></tr>
+        <tr><th>Conductor Id:</th><td>${viInfo.Clearance_Band}</td></tr>
+        <tr><th>Conductor Id:</th><td>${viInfo.Closest_Intrusion_Distance}</td></tr>
+        <tr><th>Bay ID:</th><td>${viInfo.Span_Id}</td></tr>
+        <tr><th>Bay ID:</th><td>${viInfo.Bay_Id}</td></tr>
+        <tr><th>Captured Date:</th><td>${viInfo.Captured_Date}</td></tr>
+        <tr><th>Captured Time</th><td>${viInfo.Captured_Time}</td></tr>
+        <tr><th>Minimum Ground Clearance</th><td>${viInfo.Minimum_Ground_Clearance}</td></tr>
+        
+        <!-- Add more pole attributes here -->
+      </tbody>
+    </table>
+  `;
+}
+ 
 viewer.screenSpaceEventHandler.setInputAction(async function onLeftClick(
   movement
 ) {
   const pickedObject = viewer.scene.pick(movement.position);      
-  //  console.log(pickedObject);
+   console.log(pickedObject);
   })
+
+let currentlyHighlightedPrimitive = null;
+let originalColor = null;
+
+function highlightPrimitive(primitive) {
+  if (currentlyHighlightedPrimitive !== primitive) {
+    // Restore the color of the previously highlighted primitive
+    unhighlightCurrentPrimitive();
+
+    // Highlight the new primitive
+    if (primitive instanceof Cesium.PointPrimitive) {
+      originalColor = primitive.color;
+      primitive.color = Cesium.Color.YELLOW.withAlpha(0.5); // Highlight color
+    } else if (primitive.appearance && primitive.appearance.material) {
+      originalColor = primitive.appearance.material.uniforms.color.clone();
+      console.log("🚀 ~ highlightPrimitive ~ originalColor:", originalColor)
+      primitive.appearance.material.uniforms.color = Cesium.Color.YELLOW; // Highlight color for other primitives
+    }
+
+    currentlyHighlightedPrimitive = primitive;
+  }
+}
+
+function unhighlightCurrentPrimitive() {
+  if (currentlyHighlightedPrimitive) {
+    if (currentlyHighlightedPrimitive instanceof Cesium.PointPrimitive) {
+      currentlyHighlightedPrimitive.color = originalColor;
+    } else if (
+      currentlyHighlightedPrimitive.appearance &&
+      currentlyHighlightedPrimitive.appearance.material
+    ) {
+      currentlyHighlightedPrimitive.appearance.material.uniforms.color =
+        originalColor;
+    }
+    currentlyHighlightedPrimitive = null;
+    originalColor = null;
+  }
+}
+
+// Mouse move event to highlight primitives
+viewer.screenSpaceEventHandler.setInputAction(function onMouseMove(movement) {
+  const pickedObject = viewer.scene.pick(movement.endPosition);
+  if (Cesium.defined(pickedObject) && pickedObject.primitive) {
+    // Only highlight if it's a different primitive
+    if (pickedObject.primitive !== currentlyHighlightedPrimitive) {
+      highlightPrimitive(pickedObject.primitive);
+    }
+  } else {
+    // If no primitive is under the mouse, unhighlight the current primitive
+    unhighlightCurrentPrimitive();
+  }
+}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);

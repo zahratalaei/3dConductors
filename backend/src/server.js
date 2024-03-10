@@ -138,7 +138,7 @@ app.get('/getEndPointByBayId/:zoomLevel/:x/:y/:BayId', async (req, res) => {
 // Endpoint to serve only the attributes of a specific pole by ID
 app.get('/getPolesByTile/:zoomLevel/:x/:y', async (req, res) => {
     const { zoomLevel, x, y } = req.params;
-    const dataPath = path.join(__dirname, '..', '..', 'data', 'outputs', 'pole', zoomLevel, x, `${y}-data.json`);
+    const dataPath = path.join(__dirname, '..', '..', 'data', 'outputs', 'poles', zoomLevel, x, `${y}-data.json`);
     try {
         const jsonData = await readJsonData(dataPath);
 
@@ -158,7 +158,7 @@ app.get('/getPolesByTile/:zoomLevel/:x/:y', async (req, res) => {
 // Endpoint to retrieve all information of a specific pole by its Pole_Id within a tile
 app.get('/getPoleById/:zoomLevel/:x/:y/:Pole_Id', async (req, res) => {
     const { zoomLevel, x, y, Pole_Id } = req.params;
-    const dataPath = path.join(__dirname, '..', '..', 'data', 'outputs', 'pole', zoomLevel, x, `${y}-data.json`);
+    const dataPath = path.join(__dirname, '..', '..', 'data', 'outputs', 'poles', zoomLevel, x, `${y}-data.json`);
 
     try {
         const jsonData = await readJsonData(dataPath);
@@ -185,13 +185,6 @@ app.get('/getMGCByTile/:zoomLevel/:x/:y', async (req,res)=>{
     const dataPath = path.join(__dirname, '..', '..', 'data', 'outputs', 'mgc', zoomLevel, x, `${y}-data.json`);
     try {
         const jsonData = await readJsonData(dataPath);
-        // // Extracting only coordinates and Pole_Id for each pole
-        // const MGCData = jsonData.map(data => ({
-        //     coordinates: data.coordinates,
-        //     Pole_Id: data.Pole_Id,
-        //     poleHeight: data.Pole_Height,
-        //     poleColor: data.color
-        // }));
 
         res.json(jsonData);
     } catch (error) {

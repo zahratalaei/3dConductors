@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import {Cartesian3 } from "cesium";
+import { Cartesian3 } from "cesium";
 import { mkdir } from "fs/promises";
 import { fileURLToPath } from "url";
 import * as mercator from "../../mercator-transforms-master/src/index.mjs";
@@ -37,7 +37,7 @@ const directoryPath = path.join(
   "..",
   "data",
   "outputs",
-  "conductors",
+  "SICB",
   `${ZOOM_LEVEL}`
 );
 
@@ -48,7 +48,14 @@ async function processDataAndSave() {
     const existingTileData = {};
 
     // Directory containing input files
-    const inputDirectory = path.join(__dirname, "..", "..", "data", "inputs", "conductors");
+    const inputDirectory = path.join(
+      __dirname,
+      "..",
+      "..",
+      "data",
+      "inputs",
+      "SICB"
+    );
 
     // List all files in the directory
     const inputFiles = fs.readdirSync(inputDirectory);
@@ -78,43 +85,17 @@ async function processDataAndSave() {
             tileSystemName
           );
 
-          // Process each point in the conductor
-          const processedCartesian = conductor.Coordinates.map((point) => {
-            // Convert to Cartesian3
-            const cartesian = toCartesian3(
-              point.Latitude,
-              point.Longitude,
-              point.Elevation
-            );
-            return {
-              x: cartesian.x,
-              y: cartesian.y,
-              z: cartesian.z,
-            };
-          });
-
           const processedInfo = {
-            color: color,
-            Ambient_Tension: conductor.Ambient_Tension,
-            Ambient_Tension_CBL: conductor.Ambient_Tension_CBL,
+            Intrusion_Id: conductor.Intrusion_Id,
+            Voltage: conductor.Voltage,
+            Clearance_Band: conductor.Clearance_Band,
+            Closest_Intrusion_Distance: conductor.Closest_Intrusion_Distance,
+            Span_Id: conductor.Span_Id,
             Bay_Id: conductor.Bay_Id,
             Captured_Date: conductor.Captured_Date,
             Captured_Time: conductor.Captured_Time,
-            ConductorId: conductor.ConductorId,
-            Conductor_Length: conductor.Conductor_Length,
-            Conductor_Type: conductor.Conductor_Type,
-            Depot: conductor.Depot,
-            K_Factor: conductor.K_Factor,
-            MaintenanceArea: conductor.MaintenanceArea,
-            MaxWind_Tension: conductor.MaxWind_Tension,
-            MaxWind_Tension_CBL: conductor.MaxWind_Tension_CBL,
-            Minimum_Ground_Clearance: conductor.Minimum_Ground_Clearance,
-            Minimum_Road_Clearance: conductor.Minimum_Road_Clearance,
-            Nominal_Breaking_Load: conductor.Nominal_Breaking_Load,
-            Voltage: conductor.Voltage,
-            _field_16: conductor._field_16,
           };
-          
+          const Coordinates = conductor.Coordinates;
           // Use the tile coordinates as a key
           const tileKey = `${tile[0]}-${tile[1]}`;
 
@@ -125,7 +106,7 @@ async function processDataAndSave() {
 
           // Add the combined data to the tile's array
           tilesData[tileKey].push({
-            cartesian: processedCartesian,
+            Coordinates,
             ...processedInfo,
           });
         });
@@ -139,31 +120,38 @@ async function processDataAndSave() {
         existingTileData[tileKey].push(...data);
       }
     }
-// Save or append the combined data to output files
-for (const [tileKey, data] of Object.entries(existingTileData)) {
-  const [x, y] = tileKey.split("-");
-  const dirPath = path.join(directoryPath, x);
-  const filePath = path.join(dirPath, `${y}-data.json`);
 
-  // Ensure the tile's directory exists
-  await createDirectory(dirPath);
+    // Save or append the combined data to output files
+    for (const [tileKey, data] of Object.entries(existingTileData)) {
+      const [x, y] = tileKey.split("-");
+      const filePath = path.join(directoryPath, x, `${y}-data.json`);
 
-  let finalData = data;
-  // Check if the file already exists
-  if (fs.existsSync(filePath)) {
-    // Read the existing data
-    const existingDataRaw = fs.readFileSync(filePath);
-    const existingData = JSON.parse(existingDataRaw);
-    // Merge new data with existing data
-    finalData = existingData.concat(data);
-  }
+      // Ensure the tile's directory exists
+      await createDirectory(path.join(directoryPath, x));
 
-  // Write the merged (or new) data back to the file
-  fs.writeFileSync(filePath, JSON.stringify(finalData, null, 2));
-}
+      // Check if the file exists
+      if (fs.existsSync(filePath)) {
+        // Read existing data
+        const existingDataRaw = fs.readFileSync(filePath);
+        let existingData = [];
+        try {
+          existingData = JSON.parse(existingDataRaw);
+        } catch (error) {
+          console.error("Error parsing existing data:", error);
+        }
 
-console.log("Data has been processed and saved (or appended) successfully.");
+        // Append new data to existing data
+        const combinedData = existingData.concat(data);
 
+        // Write the combined data back to the file
+        fs.writeFileSync(filePath, JSON.stringify(combinedData, null, 2));
+      } else {
+        // If the file does not exist, simply write the new data
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+      }
+    }
+
+    console.log("Data has been processed and saved successfully.");
   } catch (error) {
     console.error("Error processing data:", error);
   }
