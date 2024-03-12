@@ -50,14 +50,14 @@ const config = {
         test: /\.(png|gif|jpg|jpeg|svg|xml|json)$/,
         use: [
           {
-            loader: 'url-loader',
+            loader: "url-loader",
             options: {
               limit: 8192, // Images smaller than 8kb are inlined as data URLs.
-              fallback: 'file-loader', // Images larger than 8kb are handled by file-loader.
-              name: 'images/[name].[ext]', // Output path for images handled by file-loader.
-            }
-          }
-        ]
+              fallback: "file-loader", // Images larger than 8kb are handled by file-loader.
+              name: "images/[name].[ext]", // Output path for images handled by file-loader.
+            },
+          },
+        ],
       },
     ],
   },
@@ -80,7 +80,7 @@ const config = {
           from: path.resolve(__dirname, "./public/assets/icons"), // Adjust if the path is different
           to: "assets/icons",
         },
-      
+
         // {
         //   from: "../mercator-transforms-master",
         //   to: "mercator-transforms-master",
@@ -100,7 +100,7 @@ const config = {
     // hot: true,  // Enable hot module replacement
   },
   resolve: {
-    extensions: [".js", ".mjs", ".json",".png",".svg"],
+    extensions: [".js", ".mjs", ".json", ".png", ".svg"],
     modules: ["node_modules"],
     alias: {
       // CesiumJS module name
@@ -118,6 +118,10 @@ const config = {
   },
   watchOptions: {
     ignored: /node_modules/, // Ignore everything in the node_modules directory
+  },
+  watch: true,
+  watchOptions: {
+    poll: 1000, // Check for changes every second
   },
 };
 export default config;

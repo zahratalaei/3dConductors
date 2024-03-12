@@ -5,25 +5,26 @@ import * as Cesium from "cesium/Cesium";
 export const pointsDataMap = new Map();
 
 export async function fetchDataForTile(tile, zoomLevel, dataType = "full") {
-   let url = `http://localhost:3000/getConductorCartesian/${zoomLevel}/476590/193373`;
-  // let url;
-  // switch (dataType) {
-  //   case "attributes":
-  //     url = `http://localhost:3000/getConductorAttributes/${zoomLevel}/${tile._x}/${tile._y}`;
-  //     break;
-  //   case "cartesian":
-  //     url = `http://localhost:3000/getConductorCartesian/${zoomLevel}/476590/193373`;
-  //     break;
-  //   default:
-  //     url = `http://localhost:3000/getCatenaries/${zoomLevel}/${tile._x}/${tile._y}`;
-  // }
-
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
+  //  let url = `http://localhost:3000/getConductorCartesian/${zoomLevel}/476590/193373`;
+  let url;
+  switch (dataType) {
+    case "attributes":
+      url = `http://localhost:3000/getConductorAttributes/${zoomLevel}/${tile._x}/${tile._y}`;
+      break;
+    case "cartesian":
+      url = `http://localhost:3000/getConductorCartesian/${zoomLevel}/${tile._x}/${tile._y}`;
+      break;
+      default:
+      url = `http://localhost:3000/getCatenaries/${zoomLevel}/${tile._x}/${tile._y}`;
     }
-    const data = await response.json();
+    
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log("url:", url)
     return data;
   } catch (error) {
     console.error(`Failed to fetch ${dataType} data for ${tile._x}:`, error);
@@ -39,7 +40,6 @@ export function addSplineForPoints(
   primitiveCollectionMap,
   viewer
 ) {
-  // console.log("🚀 ~ tileId:", tileId)
   // Check if a primitive already exists for this conductorId, and if so, remove it
   const existingPrimitive = primitiveMap.get(conductorId);
   if (existingPrimitive) {
@@ -249,7 +249,7 @@ export async function drawMGC(
     }
 
     // Convert color to string and add transparency
-    console.log("🚀 ~ mgc.color:", mgc.color);
+    // console.log("🚀 ~ mgc.color:", mgc.color);
     const color = Cesium.Color.fromCssColorString(mgc.color).withAlpha(0.2);
     // Create start and end Cartesian3 positions
     const start = Cesium.Cartesian3.fromDegrees(
@@ -391,7 +391,7 @@ export async function createAlert(
         id: JSON.stringify(viId),
       });
       
-        console.log("🚀 ~ pointPrimitive:", pointPrimitive);
+        // console.log("🚀 ~ pointPrimitive:", pointPrimitive);
      
     //     billboards.add({
     //       id: JSON.stringify(viId),
@@ -407,7 +407,7 @@ export async function createAlert(
 
     const { Coordinates, ...remainingProperties } = vegetationIntrusion;
     pointPrimitives.providedProperties = { ...remainingProperties };
-    console.log("🚀 ~ pointPrimitives:", pointPrimitives);
+    // console.log("🚀 ~ pointPrimitives:", pointPrimitives);
 
     // Get or create the array for the tileId and add the primitive
     const viPrimitiveArray = getOrCreatePrimitiveArrayForTile(

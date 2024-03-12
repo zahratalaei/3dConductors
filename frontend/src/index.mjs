@@ -138,7 +138,8 @@ function onCameraChanged(viewer) {
         ])
           // fetchDataForTile(tile, zoomLevel, "cartesian")
           .then(([tileData, polesData, mgcData,newData,sicbData]) => {
-          console.log("🚀 ~ .then ~ [tileData, polesData, mgcData,newData,sicbData]:", [tileData, polesData, mgcData,newData,sicbData][0])
+          console.log("🚀 ~ .then ~ tileData:", tileData)
+          // console.log("🚀 ~ .then ~ [tileData, polesData, mgcData,newData,sicbData]:", [tileData, polesData, mgcData,newData,sicbData][0])
           
            
            // Ensure mgcData is the expected object with a cartesian property
@@ -151,6 +152,7 @@ function onCameraChanged(viewer) {
                 acc[BayId].push(conductor);
                 return acc;
               }, {});
+              console.log("🚀 ~ bayGroups ~ bayGroups:", bayGroups)
 
               // Process each group of conductors by BayId
               Object.entries(bayGroups).forEach(([bayId, conductors]) => {
@@ -204,7 +206,6 @@ function onCameraChanged(viewer) {
                 }
                 if (sicbData && sicbData.length > 0) {
                   sicbData.forEach((sicb) => {
-                      console.log("🚀 ~ sicbData.forEach ~ sicb:", sicb)
                       createSICBAlert(
                       tile,
                       sicb,
@@ -252,7 +253,6 @@ function onCameraChanged(viewer) {
       fetchDataPromises.push(fetchDataPromise);
     }
   });
-    console.log("🚀 ~ tilesAtZoomLevel.forEach ~ newVisibleTileIds:", newVisibleTileIds)
     console.log("🚀 ~ tilesAtZoomLevel.forEach ~ newVisibleTileIds:", newVisibleTileIds)
   // Handle all fetch data promises concurrently
   Promise.all(fetchDataPromises).catch((error) => {
@@ -596,7 +596,6 @@ viewer.screenSpaceEventHandler.setInputAction(async function onLeftClick(
       typeof pickedObject.id === "string" &&
       pickedObject.id.startsWith(`"sicb_`)
     ) {
-      console.log("sicb is clicked");
       highlightSICB(pickedObject.primitive);
       viewer.selectedEntity = new Cesium.Entity({
         name: `Structural Intrusion Details`,
@@ -965,7 +964,6 @@ viewer.screenSpaceEventHandler.setInputAction(async function onLeftClick(
   movement
 ) {
   const pickedObject = viewer.scene.pick(movement.position);      
-   console.log(pickedObject);
   })
 
 let currentlyHighlightedPrimitive = null;
@@ -982,7 +980,6 @@ function highlightPrimitive(primitive) {
       primitive.color = Cesium.Color.YELLOW.withAlpha(0.5); // Highlight color
     } else if (primitive.appearance && primitive.appearance.material) {
       originalColor = primitive.appearance.material.uniforms.color.clone();
-      console.log("🚀 ~ highlightPrimitive ~ originalColor:", originalColor)
       primitive.appearance.material.uniforms.color = Cesium.Color.YELLOW; // Highlight color for other primitives
     }
 

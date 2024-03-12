@@ -11,7 +11,6 @@ export async function fetchSICBsData(tile, zoomLevel) {
       throw new Error("Failed to fetch structural intrusion data");
     }
     const data = await response.json(); // Correctly await the JSON data
-    console.log("🚀 ~ fetchSICBsData ~ data:", data);
 
     return data;
   } catch (e) {
@@ -68,7 +67,6 @@ export async function createSICBAlert(
         id: JSON.stringify(sicbId),
       });
 
-      console.log("🚀 ~ pointPrimitive:", pointPrimitive);
 
       //     billboards.add({
       //       id: JSON.stringify(sicbId),
@@ -97,6 +95,6 @@ export async function createSICBAlert(
     // Store a reference to the primitive with its mgcId
     primitiveMap.set(sicbId, pointPrimitives);
   } catch (e) {
-    console.error("Error fetching or creating vegetation intrusion:", e);
+    console.error("Error fetching or creating structural intrusion:", e);
   }
 }
