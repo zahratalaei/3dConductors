@@ -16,6 +16,7 @@ import {
   getOrCreatePrimitiveArrayForTile,
 } from "./addPrimitives/helpers.mjs";
 import pLimit from "p-limit";
+import { createSICBAlert, fetchSICBsData } from "./addPrimitives/addSICB.mjs";
 const limit = pLimit(10); // Adjust the limit as needed
 const zoomLevel = 18;
 // Map to hold arrays of primitives for each tile
@@ -130,14 +131,15 @@ function onCameraChanged(viewer) {
       const fetchDataPromise = limit(() =>
         Promise.all([
           fetchDataForTile(tile, zoomLevel, "cartesian"), // Assuming fetchDataForTile can be parameterized to fetch different types of data
-          fetchDataForTile(tile, zoomLevel, "cartesian"), // Assuming fetchDataForTile can be parameterized to fetch different types of data
           fetchPolesData(tile, zoomLevel), // Fetch pole data
           fetchMGCsData(tile, zoomLevel),// Fetch MGC data
-          fetchVIsData(tile,zoomLevel),// Fetch VIs data
+          fetchVIsData(tile, zoomLevel),// Fetch VIs data
+          fetchSICBsData(tile, zoomLevel),// Fetch SICBs data
         ])
           // fetchDataForTile(tile, zoomLevel, "cartesian")
-          .then(([tileData, polesData, mgcData,newData]) => {
-           console.log("🚀 ~ .then ~ tileData:", tileData)
+          .then(([tileData, polesData, mgcData,newData,sicbData]) => {
+          console.log("🚀 ~ .then ~ [tileData, polesData, mgcData,newData,sicbData]:", [tileData, polesData, mgcData,newData,sicbData][0])
+          
            
            // Ensure mgcData is the expected object with a cartesian property
     ;
@@ -194,6 +196,18 @@ function onCameraChanged(viewer) {
                     createAlert(
                       tile,
                       vi,
+                      viewer,
+                      primitiveCollectionMap,
+                      primitiveMap
+                    );
+                  });
+                }
+                if (sicbData && sicbData.length > 0) {
+                  sicbData.forEach((sicb) => {
+                      console.log("🚀 ~ sicbData.forEach ~ sicb:", sicb)
+                      createSICBAlert(
+                      tile,
+                      sicb,
                       viewer,
                       primitiveCollectionMap,
                       primitiveMap
@@ -395,9 +409,19 @@ function createDescriptionHtml(conductorInfo) {
   // Modify this function to use conductorInfo data
   return `
   <table class="cesium-infoBox-defaultTable"><tbody>
-  <tr><th>Conductor:</th><td>${conductorInfo.ConductorId}</td></tr>
-  <tr><th>Conductor Length:</th><td>${conductorInfo.Conductor_Length}</td></tr>
+  <tr><th>Ambient Tension:</th><td>${conductorInfo.Ambient_Tension}</td></tr>
+  <tr><th>Ambient Tension CBL:</th><td>${conductorInfo.Ambient_Tension_CBL}</td></tr>
   <tr><th>Bay ID:</th><td>${conductorInfo.Bay_Id}</td></tr>
+  <tr><th>Captured 2024-03-12 10:37:43Date:</th><td>${conductorInfo.Captured_Date}</td></tr>
+  <tr><th>Captured 2024-03-12 10:37:43Time:</th><td>${conductorInfo.Captured_Time}</td></tr>
+  <tr><th>ConductorId:</th><td>${conductorInfo.ConductorId}</td></tr>
+  <tr><th>Conductor 2024-03-12 10:37:43Length:</th><td>${conductorInfo.Conductor_Length}</td></tr>
+  <tr><th>Depot:</th><td>${conductorInfo.Depot}</td></tr>
+  <tr><th>MaintenanceArea:</th><td>${conductorInfo.MaintenanceArea}</td></tr>
+  <tr><th>MaxWind 2024-03-12 10:37:43Tension:</th><td>${conductorInfo.MaxWind_Tension}</td></tr>
+  <tr><th>MaxWind 2024-03-12 10:37:43Tension_CBL:</th><td>${conductorInfo.MaxWind_Tension_CBL}</td></tr>
+  <tr><th>Minimum 2024-03-12 10:37:43Ground_Clearance:</th><td>${conductorInfo.Minimum_Ground_Clearance}</td></tr>
+  <tr><th>Nominal 2024-03-12 10:37:43Breaking_Load:</th><td>${conductorInfo.Nominal_Breaking_Load}</td></tr>
   <tr><th>Voltage:</th><td>${conductorInfo.Voltage}</td></tr>
   </tbody></table>
   
@@ -485,6 +509,19 @@ function highlightVI(primitive) {
     primitive.color = Cesium.Color.YELLOW;
   }
 }
+/**Highlight selectet VI */
+function highlightSICB(primitive) {
+  resetLastPickedPrimitiveColor();
+  // Check if the primitive is a PointPrimitive
+  if (primitive instanceof Cesium.PointPrimitive) {
+    // Store the current primitive and its original color
+    lastPickedPrimitive = primitive;
+    lastPickedPrimitiveOriginalColor = primitive.color.clone();
+
+    // Change the color of the primitive to highlight it
+    primitive.color = Cesium.Color.YELLOW;
+  }
+}
 
 let currentConductorId = null;
 viewer.screenSpaceEventHandler.setInputAction(async function onLeftClick(
@@ -548,13 +585,26 @@ viewer.screenSpaceEventHandler.setInputAction(async function onLeftClick(
       pickedObject.id.startsWith(`"vi_`)
     ) {
       highlightVI(pickedObject.primitive);
-       viewer.selectedEntity = new Cesium.Entity({
-         name: `Vegetation Intrusion Details`,
-         description: createVIDescriptionHtml(
-           pickedObject.collection.providedProperties
-         ),
-         id: pickedObject.id,
-       });
+      viewer.selectedEntity = new Cesium.Entity({
+        name: `Vegetation Intrusion Details`,
+        description: createVIDescriptionHtml(
+          pickedObject.collection.providedProperties
+        ),
+        id: pickedObject.id,
+      });
+    } else if (
+      typeof pickedObject.id === "string" &&
+      pickedObject.id.startsWith(`"sicb_`)
+    ) {
+      console.log("sicb is clicked");
+      highlightSICB(pickedObject.primitive);
+      viewer.selectedEntity = new Cesium.Entity({
+        name: `Structural Intrusion Details`,
+        description: createSICBDescriptionHtml(
+          pickedObject.collection.providedProperties
+        ),
+        id: pickedObject.id,
+      });
     } else {
       try {
         if (currentConductorId) {
@@ -664,18 +714,18 @@ viewer.screenSpaceEventHandler.setInputAction(function onRightClick(movement) {
   if (modal) {
     modal.style.display = "none";
   }
-
-  // Reset the appearance of the last picked entity
-  if (lastPickedPrimitive && lastPickedPrimitiveOriginalColor) {
-    lastPickedPrimitive.appearance.material.uniforms.color = lastPickedPrimitiveOriginalColor;
-    lastPickedPrimitive = undefined;
-    lastPickedPrimitiveOriginalColor = undefined;
-  }
-  // Remove point entities for the current conductor
-  if (currentConductorId) {
-    removeConductorPoints(currentConductorId);
-    currentConductorId = null; // Reset the currentConductorId
-  }
+resetLastPickedPrimitiveColor()
+  // // Reset the appearance of the last picked entity
+  // if (lastPickedPrimitive && lastPickedPrimitiveOriginalColor) {
+  //   lastPickedPrimitive.appearance.material.uniforms.color = lastPickedPrimitiveOriginalColor;
+  //   lastPickedPrimitive = undefined;
+  //   lastPickedPrimitiveOriginalColor = undefined;
+  // }
+  // // Remove point entities for the current conductor
+  // if (currentConductorId) {
+  //   removeConductorPoints(currentConductorId);
+  //   currentConductorId = null; // Reset the currentConductorId
+  // }
   // Deselect the current entity
   viewer.selectedEntity = undefined;
 
@@ -840,11 +890,11 @@ function createPoleDescriptionHtml(poleInfo) {
         <tr><th>Pole ID:</th><td>${poleInfo.Pole_Id}</td></tr>
         <tr><th>Pole Height:</th><td>${poleInfo.Pole_Height}</td></tr>
         <tr><th>Site Label:</th><td>${poleInfo.Site_Label}</td></tr>
-        <tr><th>Max_Voltage:</th><td>${poleInfo.Max_Voltage}</td></tr>
-        <tr><th>Pole_Height</th><td>${poleInfo.Pole_Height}</td></tr>
-        <tr><th>Pole_Lean:</th><td>${poleInfo.Pole_Lean}</td></tr>
-        <tr><th>Captured_Date:</th><td>${poleInfo.Captured_Date}</td></tr>
-        <tr><th>Captured_Time:</th><td>${poleInfo.Captured_Time}</td></tr>
+        <tr><th>Max Voltage:</th><td>${poleInfo.Max_Voltage}</td></tr>
+        <tr><th>Pole Height</th><td>${poleInfo.Pole_Height}</td></tr>
+        <tr><th>Pole Lean:</th><td>${poleInfo.Pole_Lean}</td></tr>
+        <tr><th>Captured Date:</th><td>${poleInfo.Captured_Date}</td></tr>
+        <tr><th>Captured Time:</th><td>${poleInfo.Captured_Time}</td></tr>
         <tr><th>Maintenance Area:</th><td>${poleInfo.MaintenanceArea}</td></tr>
         <tr><th>Depot:</th><td>${poleInfo.Depot}</td></tr>
         <!-- Add more pole attributes here -->
@@ -876,16 +926,35 @@ function createVIDescriptionHtml(viInfo) {
   return `
     <table class="cesium-infoBox-defaultTable">
       <tbody>
-        <tr><th>Bay ID:</th><td>${viInfo.Intrusion_Id}</td></tr>
+        <tr><th>Intrusion ID:</th><td>${viInfo.Intrusion_Id}</td></tr>
         <tr><th>Voltage:</th><td>${viInfo.Voltage}</td></tr>
-        <tr><th>Conductor Id:</th><td>${viInfo.Clearance_Band}</td></tr>
-        <tr><th>Conductor Id:</th><td>${viInfo.Closest_Intrusion_Distance}</td></tr>
-        <tr><th>Bay ID:</th><td>${viInfo.Span_Id}</td></tr>
+        <tr><th>Clearance Band:</th><td>${viInfo.Clearance_Band}</td></tr>
+        <tr><th>Closest Intrusion Distance:</th><td>${viInfo.Closest_Intrusion_Distance}</td></tr>
+        <tr><th>Span ID:</th><td>${viInfo.Span_Id}</td></tr>
         <tr><th>Bay ID:</th><td>${viInfo.Bay_Id}</td></tr>
         <tr><th>Captured Date:</th><td>${viInfo.Captured_Date}</td></tr>
         <tr><th>Captured Time</th><td>${viInfo.Captured_Time}</td></tr>
         <tr><th>Minimum Ground Clearance</th><td>${viInfo.Minimum_Ground_Clearance}</td></tr>
         
+        <!-- Add more pole attributes here -->
+      </tbody>
+    </table>
+  `;
+}
+//sicb discription
+function createSICBDescriptionHtml(sicbInfo) {
+  // Modify this function to use poleInfo data
+  return `
+    <table class="cesium-infoBox-defaultTable">
+      <tbody>
+        <tr><th>Intrusion ID:</th><td>${sicbInfo.Intrusion_Id}</td></tr>
+        <tr><th>Voltage:</th><td>${sicbInfo.Voltage}</td></tr>
+        <tr><th>Clearance Band:</th><td>${sicbInfo.Clearance_Band}</td></tr>
+        <tr><th>Closest Intrusion Distance:</th><td>${sicbInfo.Closest_Intrusion_Distance}</td></tr>
+        <tr><th>Span ID:</th><td>${sicbInfo.Span_Id}</td></tr>
+        <tr><th>Bay ID:</th><td>${sicbInfo.Bay_Id}</td></tr>
+        <tr><th>Captured Date:</th><td>${sicbInfo.Captured_Date}</td></tr>
+        <tr><th>Captured Time</th><td>${sicbInfo.Captured_Time}</td></tr>        
         <!-- Add more pole attributes here -->
       </tbody>
     </table>

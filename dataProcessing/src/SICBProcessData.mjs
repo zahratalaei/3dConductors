@@ -86,6 +86,7 @@ async function processDataAndSave() {
           );
 
           const processedInfo = {
+            Color:color,
             Intrusion_Id: conductor.Intrusion_Id,
             Voltage: conductor.Voltage,
             Clearance_Band: conductor.Clearance_Band,

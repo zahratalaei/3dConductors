@@ -5,17 +5,18 @@ import * as Cesium from "cesium/Cesium";
 export const pointsDataMap = new Map();
 
 export async function fetchDataForTile(tile, zoomLevel, dataType = "full") {
-  let url;
-  switch (dataType) {
-    case "attributes":
-      url = `http://localhost:3000/getConductorAttributes/${zoomLevel}/${tile._x}/${tile._y}`;
-      break;
-    case "cartesian":
-      url = `http://localhost:3000/getConductorCartesian/${zoomLevel}/${tile._x}/${tile._y}`;
-      break;
-    default:
-      url = `http://localhost:3000/getCatenaries/${zoomLevel}/${tile._x}/${tile._y}`;
-  }
+   let url = `http://localhost:3000/getConductorCartesian/${zoomLevel}/476590/193373`;
+  // let url;
+  // switch (dataType) {
+  //   case "attributes":
+  //     url = `http://localhost:3000/getConductorAttributes/${zoomLevel}/${tile._x}/${tile._y}`;
+  //     break;
+  //   case "cartesian":
+  //     url = `http://localhost:3000/getConductorCartesian/${zoomLevel}/476590/193373`;
+  //     break;
+  //   default:
+  //     url = `http://localhost:3000/getCatenaries/${zoomLevel}/${tile._x}/${tile._y}`;
+  // }
 
   try {
     const response = await fetch(url);
@@ -382,36 +383,6 @@ export async function createAlert(
         parseFloat(coord.Latitude),
         parseFloat(coord.Elevation)
       );
-
-
-
-
-// // Create the geometry instance for the circle
-// const circleGeometry = new Cesium.EllipseGeometry({
-//     center: position,
-//     semiMajorAxis: 1, // Same as the radius for a circle
-//     semiMinorAxis: 1, // Same as the radius for a circle
-//     vertexFormat: Cesium.MaterialAppearance.MaterialSupport.TEXTURED.vertexFormat,
-// });
-
-// const geometryInstance = new Cesium.GeometryInstance({
-//     geometry: circleGeometry,
-// });
-
-// // Create a material for the circle
-// const material = new Cesium.Material.fromType('Color');
-// material.uniforms.color = new Cesium.Color(0.0, 1.0, 0.0, 0.5); // Semi-transparent red
-
-// // Create the ground primitive with the material
-// const circlePrimitive = new Cesium.GroundPrimitive({
-//     geometryInstances: geometryInstance,
-//     appearance: new Cesium.MaterialAppearance({
-//         material: material,
-//     }),
-// });
-
-// // Add the circle to the scene
-// viewer.scene.primitives.add(circlePrimitive);
 
       const pointPrimitive = pointPrimitives.add({
         position: position,

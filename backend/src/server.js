@@ -202,3 +202,14 @@ app.get('/getVIByTile/:zoomLevel/:x/:y', async (req,res)=>{
         handleFileReadError(error, res);
     }
 })
+// Endpoint to retrieve all information of a Structural Intrusion  within a tile
+app.get('/getSICBByTile/:zoomLevel/:x/:y', async (req,res)=>{
+    const { zoomLevel, x, y } = req.params;
+    const dataPath = path.join(__dirname, '..', '..', 'data', 'outputs', 'SICB', zoomLevel, x, `${y}-data.json`);
+    try {
+        const jsonData = await readJsonData(dataPath);
+        res.json(jsonData);
+    } catch (error) {
+        handleFileReadError(error, res);
+    }
+})
