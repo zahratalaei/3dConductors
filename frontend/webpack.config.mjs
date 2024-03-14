@@ -118,10 +118,6 @@ const config = {
   },
   watchOptions: {
     ignored: /node_modules/, // Ignore everything in the node_modules directory
-  },
-  watch: true,
-  watchOptions: {
-    poll: 1000, // Check for changes every second
-  },
+  }
 };
 export default config;

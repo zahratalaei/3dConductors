@@ -80,7 +80,7 @@ export async function createSICBAlert(
       //     });
     }
 
-    const { Coordinates, ...remainingProperties } = structuralIntrusion;
+    const { coordinates, ...remainingProperties } = structuralIntrusion;
     pointPrimitives.providedProperties = { ...remainingProperties };
     // console.log("🚀 ~ pointPrimitives:", pointPrimitives);
 

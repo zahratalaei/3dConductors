@@ -14,17 +14,18 @@ export async function fetchDataForTile(tile, zoomLevel, dataType = "full") {
     case "cartesian":
       url = `http://localhost:3000/getConductorCartesian/${zoomLevel}/${tile._x}/${tile._y}`;
       break;
-      default:
-      url = `http://localhost:3000/getCatenaries/${zoomLevel}/${tile._x}/${tile._y}`;
+    default:
+      url = `http://localhost:3000/getConductors/${zoomLevel}/${tile._x}/${tile._y}`;
+  }
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
     }
-    
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      const data = await response.json();
-      console.log("url:", url)
+    const data = await response.json();
+    console.log("url:", url);
+    console.log("🚀 ~ fetchDataForTile ~ data in addCatenaries:", data);
     return data;
   } catch (error) {
     console.error(`Failed to fetch ${dataType} data for ${tile._x}:`, error);
@@ -40,6 +41,8 @@ export function addSplineForPoints(
   primitiveCollectionMap,
   viewer
 ) {
+  console.log("=>(addCatenariesToTiles.mjs:37) tileId", tileId);
+
   // Check if a primitive already exists for this conductorId, and if so, remove it
   const existingPrimitive = primitiveMap.get(conductorId);
   if (existingPrimitive) {
@@ -75,6 +78,10 @@ export function addSplineForPoints(
 
     id: JSON.stringify(combinedId),
   });
+  console.log(
+    "=>(addCatenariesToTiles.mjs:81) geometryInstance",
+    geometryInstance.id
+  );
 
   // Create the polyline primitive
   const polylinePrimitive = new Cesium.Primitive({
@@ -88,6 +95,16 @@ export function addSplineForPoints(
     asynchronous: false,
     pointsData: points,
   });
+  polylinePrimitive.appearance.material.depthTestEnabled = false;
+
+  if (tileId == "476592-193375-18" || tileId == "476592-193375-18") {
+    console.log(
+      "=>(addCatenariesToTiles.mjs:95) polylinePrimitive",
+      polylinePrimitive._instanceIds
+    );
+  }
+  // console.log("=>(addCatenariesToTiles.mjs:95) instanceIds", polylinePrimitive._instanceIds);
+
   // Store the points data in pointsDataMap
   pointsDataMap.set(conductorId, points);
   // Get or create the primitive array for this tile
@@ -96,19 +113,34 @@ export function addSplineForPoints(
     primitiveMap
   );
   catenaryPrimitiveArray.push(polylinePrimitive); // Add the new primitive to the array
+  // console.log(`[Before Addition] Does primitiveCollectionMap already contain the conductorId ${conductorId}?`, primitiveCollectionMap.has(conductorId));
   primitiveCollectionMap.set(tileId, catenaryPrimitiveArray); // Make sure this line exists
-
+  // console.log(`[After Addition] Verification: Does primitiveCollectionMap now contain the conductorId ${conductorId}?`, primitiveCollectionMap.has(conductorId));
+  // console.log(`[After Addition] Verification: Entry for ${conductorId}:`, primitiveCollectionMap.get(conductorId));
   // Add the primitive to the scene
   viewer.scene.primitives.add(polylinePrimitive);
+  console.log(
+    `[Before Addition] Does primitiveMap already contain the conductorId ${conductorId}?`,
+    primitiveMap.has(conductorId)
+  );
 
   // Store the polyline primitive in the primitive map by conductorId
   primitiveMap.set(conductorId, polylinePrimitive);
+  console.log(
+    `[After Addition] Verification: Does primitiveMap now contain the conductorId ${conductorId}?`,
+    primitiveMap.has(conductorId)
+  );
+  console.log(
+    `[After Addition] Verification: Entry for ${conductorId}:`,
+    primitiveMap.get(conductorId)
+  );
 }
 
 // Function to fetch poles data from the server
 export async function fetchPolesData(tile, zoomLevel) {
   const response = await fetch(
-    `http://localhost:3000/getPolesByTile/${zoomLevel}/${tile._x}/${tile._y}`
+    `http://localhost:3000/getPoles/${zoomLevel}/${tile._x}/${tile._y}`
+    // `http://localhost:3000/getPolesByTile/${zoomLevel}/${tile._x}/${tile._y}`
   );
   if (!response.ok) {
     throw new Error("Failed to fetch poles data");
@@ -118,7 +150,6 @@ export async function fetchPolesData(tile, zoomLevel) {
 
 // Function to create poles based on the fetched data
 export async function drawPole(
-  zoomLevel,
   tile,
   pole,
   viewer,
@@ -127,23 +158,21 @@ export async function drawPole(
 ) {
   try {
     // Fetch poles data from the server
-    // const polesData = await fetchPolesData(tile, zoomLevel);
     const tileId = `${tile._x}-${tile._y}-${tile._level}`;
 
-    // Iterate through the fetched poles data
-    // polesData.forEach((pole) => {
     // Extract start and end coordinates for the pole
     const startCoordinate = pole.coordinates[0];
     const endCoordinate = pole.coordinates[1];
+
     const poleId = pole.Pole_Id;
     // Check if a primitive already exists for this conductorId, and if so, remove it
     const existingPrimitive = primitiveMap.get(poleId);
     if (existingPrimitive) {
+      pole = { ...viewer.scene.primitives.providedProperties, ...pole };
       viewer.scene.primitives.remove(existingPrimitive);
     }
     // Convert color to string
-    const color = Cesium.Color.fromCssColorString(pole.poleColor);
-    // Create point entities for start and end points
+    const color = Cesium.Color.fromCssColorString(pole.color);
 
     // Create start and end Cartesian3 positions
     const start = Cesium.Cartesian3.fromDegrees(
@@ -195,7 +224,7 @@ export async function drawPole(
     });
 
     // Create the cylinder primitive
-    const cylinderPrimitive = viewer.scene.primitives.add(
+    const polePrimitive = viewer.scene.primitives.add(
       new Cesium.Primitive({
         geometryInstances: instance,
         appearance: new Cesium.MaterialAppearance({
@@ -205,16 +234,17 @@ export async function drawPole(
         }),
       })
     );
-    const polePrimitiveArray = getOrCreatePrimitiveArrayForTile(
-      tileId,
-      primitiveMap
-    );
 
-    polePrimitiveArray.push(cylinderPrimitive); // Add the new primitive to the array
-    primitiveCollectionMap.set(tileId, polePrimitiveArray); // Make sure this line exists
+    const { coordinates, ...remainingProperties } = pole;
+    polePrimitive.providedProperties = { ...remainingProperties };
+
+    // Get or create the array for the tileId and add the primitive
+    const polePrimitiveArray = getOrCreatePrimitiveArrayForTile(tileId, primitiveMap );
+    polePrimitiveArray.push(polePrimitive);
+    primitiveCollectionMap.set(tileId, polePrimitiveArray);
+
     // Store the polyline primitive in the primitive map by conductorId
-    primitiveMap.set(poleId, cylinderPrimitive);
-    // });
+    primitiveMap.set(poleId, polePrimitive);
   } catch (error) {
     console.error("Error fetching or creating pole cylinders:", error);
   }
@@ -310,9 +340,8 @@ export async function drawMGC(
         }),
       })
     );
-    const { Coordinates, ...remainingProperties } = mgc;
+    const { coordinates, ...remainingProperties } = mgc;
     linePrimitive.providedProperties = { ...remainingProperties };
-    // viewer.scene.primitives.add(linePrimitive);
 
     // Get or create the array for the tileId and add the primitive
     const mgcPrimitiveArray = getOrCreatePrimitiveArrayForTile(
@@ -390,22 +419,22 @@ export async function createAlert(
         color: Cesium.Color.RED,
         id: JSON.stringify(viId),
       });
-      
-        // console.log("🚀 ~ pointPrimitive:", pointPrimitive);
-     
-    //     billboards.add({
-    //       id: JSON.stringify(viId),
-    //       position: position,
-    //       image: "assets/icons/circle.svg", // URL to your alert icon image
-    //       scale: 0.2, // Adjust the scale as needed
-    //       pixelOffset: new Cesium.Cartesian2(0, 0), // Offset in pixels
-    //       eyeOffset: new Cesium.Cartesian3(0.0, 0.0, 0.0), // Adjust to move the billboard in front of or behind other billboards
-    //       horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-    //       verticalOrigin: Cesium.VerticalOrigin.CENTER, // Adjust to anchor at the bottom or center
-    //     });
+
+      // console.log("🚀 ~ pointPrimitive:", pointPrimitive);
+
+      //     billboards.add({
+      //       id: JSON.stringify(viId),
+      //       position: position,
+      //       image: "assets/icons/circle.svg", // URL to your alert icon image
+      //       scale: 0.2, // Adjust the scale as needed
+      //       pixelOffset: new Cesium.Cartesian2(0, 0), // Offset in pixels
+      //       eyeOffset: new Cesium.Cartesian3(0.0, 0.0, 0.0), // Adjust to move the billboard in front of or behind other billboards
+      //       horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
+      //       verticalOrigin: Cesium.VerticalOrigin.CENTER, // Adjust to anchor at the bottom or center
+      //     });
     }
 
-    const { Coordinates, ...remainingProperties } = vegetationIntrusion;
+    const { coordinates, ...remainingProperties } = vegetationIntrusion;
     pointPrimitives.providedProperties = { ...remainingProperties };
     // console.log("🚀 ~ pointPrimitives:", pointPrimitives);
 

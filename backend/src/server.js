@@ -50,7 +50,18 @@ app.get('/getConductorCartesian/:zoomLevel/:x/:y', async (req, res) => {
     }
 });
 
+// Endpoint to retrieve all information of a specific minimum within a tile
+app.get('/getConductors/:zoomLevel/:x/:y', async (req,res)=>{
+    const { zoomLevel, x, y } = req.params;
+    const dataPath = path.join(__dirname, '..', '..', 'data', 'outputs', 'conductors', zoomLevel, x, `${y}-data.json`);
+    try {
+        const jsonData = await readJsonData(dataPath);
 
+        res.json(jsonData);
+    } catch (error) {
+        handleFileReadError(error, res);
+    }
+})
 
 
 // Function to construct the data path
@@ -178,6 +189,19 @@ app.get('/getPoleById/:zoomLevel/:x/:y/:Pole_Id', async (req, res) => {
         handleFileReadError(error, res);
     }
 });
+
+// Endpoint to retrieve all information of the Poles within a tile
+app.get('/getPoles/:zoomLevel/:x/:y', async (req,res)=>{
+    const { zoomLevel, x, y } = req.params;
+    const dataPath = path.join(__dirname, '..', '..', 'data', 'outputs', 'poles', zoomLevel, x, `${y}-data.json`);
+    try {
+        const jsonData = await readJsonData(dataPath);
+
+        res.json(jsonData);
+    } catch (error) {
+        handleFileReadError(error, res);
+    }
+})
 
 // Endpoint to retrieve all information of a specific minimum within a tile
 app.get('/getMGCByTile/:zoomLevel/:x/:y', async (req,res)=>{
