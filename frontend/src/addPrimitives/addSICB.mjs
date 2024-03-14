@@ -41,9 +41,6 @@ export async function createSICBAlert(
       viewer.scene.primitives.remove(existingPrimitive);
     }
 
-    // const billboards = viewer.scene.primitives.add(
-    //   new Cesium.BillboardCollection()
-    // );
 
     const pointPrimitives = viewer.scene.primitives.add(
       new Cesium.PointPrimitiveCollection()
@@ -68,21 +65,10 @@ export async function createSICBAlert(
       });
 
 
-      //     billboards.add({
-      //       id: JSON.stringify(sicbId),
-      //       position: position,
-      //       image: "assets/icons/circle.svg", // URL to your alert icon image
-      //       scale: 0.2, // Adjust the scale as needed
-      //       pixelOffset: new Cesium.Cartesian2(0, 0), // Offset in pixels
-      //       eyeOffset: new Cesium.Cartesian3(0.0, 0.0, 0.0), // Adjust to move the billboard in front of or behind other billboards
-      //       horizontalOrigin: Cesium.HorizontalOrigin.CENTER,
-      //       verticalOrigin: Cesium.VerticalOrigin.CENTER, // Adjust to anchor at the bottom or center
-      //     });
     }
 
     const { coordinates, ...remainingProperties } = structuralIntrusion;
     pointPrimitives.providedProperties = { ...remainingProperties };
-    // console.log("🚀 ~ pointPrimitives:", pointPrimitives);
 
     // Get or create the array for the tileId and add the primitive
     const sicbPrimitiveArray = getOrCreatePrimitiveArrayForTile(
