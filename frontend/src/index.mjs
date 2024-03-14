@@ -37,7 +37,7 @@ const viewer = new Cesium.Viewer("cesiumContainer", {
     selectionIndicator: true,
     allowDataURIs: true,
 });
-viewer.extend(Cesium.viewerCesiumInspectorMixin);
+// viewer.extend(Cesium.viewerCesiumInspectorMixin);
 // viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
 viewer.scene.globe.depthTestAgainstTerrain = true;
 viewer.infoBox.viewModel.showInfo = true;
@@ -575,6 +575,13 @@ viewer.screenSpaceEventHandler.setInputAction(async function onLeftClick(
   console.log(pickedObject);
 
   if (Cesium.defined(pickedObject) && pickedObject.primitive && pickedObject.id) {
+    if (
+      lastHoveredPrimitive &&
+      lastHoveredPrimitive === pickedObject.primitive
+    ) {
+      resetLastHoveredPrimitiveColor();
+      lastHoveredPrimitive = null;
+    }
     // Parse the JSON string to get the object
     const combinedId = JSON.parse(pickedObject.id);
 
@@ -912,40 +919,34 @@ function highlightHover(primitive) {
     // For PointPrimitives, clone the current color to store as the original color
     lastHoveredPrimitiveOriginalColor = primitive.color.clone();
     // Set the highlight color
-    primitive.color = Cesium.Color.YELLOW;
+    primitive.color = Cesium.Color.YELLOW.withAlpha(0.5);
   } else if (primitive.appearance && primitive.appearance.material) {
     // For other primitives with an appearance and material, clone the material color
     lastHoveredPrimitiveOriginalColor =
       primitive.appearance.material.uniforms.color.clone();
     // Set the highlight color
-    primitive.appearance.material.uniforms.color = Cesium.Color.YELLOW;
+    primitive.appearance.material.uniforms.color =
+      Cesium.Color.YELLOW.withAlpha(0.5);
   }
 }
 
 
-// viewer.screenSpaceEventHandler.setInputAction(function onMouseMove(movement) {
-//   const pickedObject = viewer.scene.pick(movement.endPosition);
+viewer.screenSpaceEventHandler.setInputAction(function onMouseMove(movement) {
+  const pickedObject = viewer.scene.pick(movement.endPosition);
 
-//   // Debugging statement to log what's being hovered over.
-//   console.log("Hovered over:", pickedObject);
-
-//   if (Cesium.defined(pickedObject) && pickedObject.primitive) {
-//     // Proceed only if we're hovering over a different primitive than the last hovered one,
-//     // and it's not the same as the last clicked (selected) primitive.
-//     if (
-//       pickedObject.primitive !== lastHoveredPrimitive &&
-//       pickedObject.primitive !== lastPickedPrimitive
-//     ) {
-//       // Apply hover highlighting to the newly hovered primitive.
-//       highlightHover(pickedObject.primitive);
-//       lastHoveredPrimitive = pickedObject.primitive;
-//     }
-//   } else {
-//     // If no primitive is under the mouse, reset the hover highlight.
-//     // This also ensures that the hover highlight is cleared when moving the mouse away from a primitive.
-//     if (lastHoveredPrimitive && lastHoveredPrimitive !== lastPickedPrimitive) {
-//       resetLastHoveredPrimitiveColor();
-//       lastHoveredPrimitive = null;
-//     }
-//   }
-// }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+  // If hovering over a primitive different from the last hovered or last clicked
+  if (
+    Cesium.defined(pickedObject) &&
+    pickedObject.primitive &&
+    pickedObject.primitive !== lastHoveredPrimitive &&
+    pickedObject.primitive !== lastPickedPrimitive
+  ) {
+    // Apply hover highlight
+    highlightHover(pickedObject.primitive);
+    lastHoveredPrimitive = pickedObject.primitive;
+  } else if (!Cesium.defined(pickedObject) && lastHoveredPrimitive) {
+    // If moved away from the last hovered primitive, reset its color
+    resetLastHoveredPrimitiveColor();
+    lastHoveredPrimitive = null;
+  }
+}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
