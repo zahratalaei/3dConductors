@@ -45,7 +45,7 @@ const viewer = new Cesium.Viewer('cesiumContainer', {
   selectionIndicator: true,
   allowDataURIs: true
 });
-// viewer.extend(Cesium.viewerCesiumInspectorMixin);
+viewer.extend(Cesium.viewerCesiumInspectorMixin);
 // viewer.scene.screenSpaceCameraController.enableCollisionDetection = true;
 viewer.scene.globe.depthTestAgainstTerrain = true;
 viewer.infoBox.viewModel.showInfo = true;
@@ -130,6 +130,12 @@ function onCameraChanged(viewer) {
       const fetchDataPromise = limit(() =>
         fetchDataForTile(tile, zoomLevel, 'cartesian')
           .then(originalTileData => {
+            // Check if originalTileData is null or undefined and handle it
+            if (!originalTileData) {
+              console.error('Received null or undefined tile data.');
+              return []; // Return an empty array to avoid further errors
+            }
+
             // Creating a deep copy of the original tile data for debugging
             const tileData = deepCopy(originalTileData);
             // Group conductors by BayId
@@ -155,47 +161,84 @@ function onCameraChanged(viewer) {
                 }
               });
             });
-            return tileData;
+            return { tileData };
           })
-
-          // Proceed to fetch other data
-          .then(tileData => {
-            return Promise.all([
-              Promise.resolve(tileData), // Keep the structure consistent, use the copied data
-              fetchPolesData(tile, zoomLevel),
-              fetchMGCsData(tile, zoomLevel),
-              fetchVIsData(tile, zoomLevel),
-              fetchSICBsData(tile, zoomLevel)
-            ]);
-          })
-
-          .then(([tileData, polesData, mgcData, newData, sicbData]) => {
-
-            if (tileData && tileData.length > 0) {
-              
-              if (polesData && polesData.length > 0) {
-                polesData.forEach(pole => {
+          .then(context =>
+            fetchPolesData(tile, zoomLevel).then(polesData => {
+              if (!polesData) throw new Error('Received null or undefined poles data.');
+              context.polesData = deepCopy(polesData);
+              if (context.polesData && context.polesData.length > 0) {
+                context.polesData.forEach(pole => {
                   drawPole(tile, pole, viewer, primitiveCollectionMap, primitiveMap);
                 });
               }
-              if (mgcData && mgcData.length > 0) {
-                mgcData.forEach(mgc => {
+              return context; // Pass the updated context to the next step.
+            })
+          )
+        
+          .then(context =>
+            fetchMGCsData(tile, zoomLevel).then(mgcData => {
+              if (!mgcData) throw new Error('Received null or undefined MGCs data.');
+              context.mgcData = deepCopy(mgcData);
+              // Add processing logic for MGCs data here.
+              if (context.mgcData && context.mgcData.length > 0) {
+                context.mgcData.forEach(mgc => {
                   drawMGC(tile, mgc, viewer, primitiveCollectionMap, primitiveMap);
                 });
               }
-              if (newData && newData.length > 0) {
-                newData.forEach(vi => {
+              return context;
+            })
+          )
+          // Add .then for fetchVIsData and fetchSICBsData following the same pattern.
+          .catch(error => {
+            console.error(`Error fetching or processing data for tile ${tileId}:`, error);
+          })
+          .then(context =>
+            fetchVIsData(tile, zoomLevel).then(newData => {
+              if (!newData) throw new Error('Received null or undefined MGCs data.');
+              context.newData = deepCopy(newData);
+              // Add processing logic for MGCs data here.
+              if (context.newData && context.newData.length > 0) {
+                context.newData.forEach(vi => {
                   createAlert(tile, vi, viewer, primitiveCollectionMap, primitiveMap);
                 });
               }
-              if (sicbData && sicbData.length > 0) {
-                sicbData.forEach(sicb => {
+              return context;
+            })
+          )
+          // Add .then for fetchVIsData and fetchSICBsData following the same pattern.
+          .catch(error => {
+            console.error(`Error fetching or processing data for tile ${tileId}:`, error);
+          })
+          .then(context =>
+            fetchSICBsData(tile, zoomLevel).then(sicbData => {
+              if (!sicbData) throw new Error('Received null or undefined MGCs data.');
+              context.sicbData = deepCopy(sicbData);
+              // Add processing logic for MGCs data here.
+              if (context.sicbData && context.sicbData.length > 0) {
+                context.sicbData.forEach(sicb => {
                   createSICBAlert(tile, sicb, viewer, primitiveCollectionMap, primitiveMap);
                 });
               }
+              return context;
+            })
+          )
+          // Add .then for fetchVIsData and fetchSICBsData following the same pattern.
+          .catch(error => {
+            console.error(`Error fetching or processing data for tile ${tileId}:`, error);
+          })
+         
+          // Proceed to fetch other data
+          .then(context => {
+                      console.log('🚀 ~ onCameraChanged ~ context:', context);
 
-            
-            }
+            return Promise.all([
+              Promise.resolve(context.tileData), // Keep the structure consistent, use the copied data
+              Promise.resolve(context.polesData),
+              Promise.resolve(context.mgcData),
+              Promise.resolve(context.newData),
+              Promise.resolve(context.sicbData)
+            ]);
           })
           .catch(error => {
             console.error('Error fetching tile data for tile ' + tileId + ':', error);
