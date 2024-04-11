@@ -42,6 +42,7 @@ The data processing involves extracting data from BigQuery, splitting it into ma
     - Ensure that the processed data is placed in the correct path and structure as expected by the frontend application for visualization.
 
 ### **Running the Server Locally**
+*** If you have processed data, create data/outputs directory at root directory and copy proccessed data into it. e.g. data/outputs/conductors
 
 To serve the data to the Cesium frontend, follow these steps:
 
