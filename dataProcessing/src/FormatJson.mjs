@@ -3,7 +3,11 @@ import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
 // const dataName = "MGC" //for Minimum ground clearance
-const dataName = "SICB"
+// const dataName = "poles"
+
+// Fetch the dataName from command line arguments
+const dataName = process.argv[2];  // Now dataName is provided as a command line argument
+
 // The modified function that converts a single NDJSON file to an array in a JSON file
 async function convertNdjsonToArray(inputFile, outputFile) {
     const fileStream = fs.createReadStream(inputFile);

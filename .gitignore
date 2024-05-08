@@ -3,7 +3,12 @@
 node_modules/
 
 #data
-data/
+data/outputs/
+data/inputs/
+data/splitFile/
 
 #mercator
 mercator-transforms-master/
+
+#dist
+frontend/dist
