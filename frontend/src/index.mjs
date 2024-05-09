@@ -467,7 +467,6 @@ async function onLeftClick(click) {
     if (typeof pickedObject.id._id === 'string' && pickedObject.id._id.startsWith('point_')) {
       highlightPoint(pickedObject.id._id);
     } else if (combinedId.hasOwnProperty('poleId')) {
-      // Add your code to handle pole selection
       highlightPrimitive(pickedObject.primitive);
       const poleInfo = pickedObject.primitive.providedProperties;
       // const poleInfo = await fetchPoleInfo(newTileId, poleId, zoomLevel);
@@ -752,7 +751,7 @@ function highlightPrimitive(primitive) {
   }
 }
 
-function highlightHover(primitive) {
+function highlightPrimitiveOnHover(primitive) {
   // Reset the color of the previously picked primitive, if any
   resetLastHoveredPrimitiveColor();
 
@@ -772,8 +771,7 @@ function highlightHover(primitive) {
     primitive.appearance.material.uniforms.color = Cesium.Color.YELLOW.withAlpha(0.5);
   }
 }
-
-viewer.screenSpaceEventHandler.setInputAction(function onMouseMove(movement) {
+function onMouseMove(movement) {
   const pickedObject = viewer.scene.pick(movement.endPosition);
 
   // If hovering over a primitive different from the last hovered or last clicked
@@ -784,11 +782,13 @@ viewer.screenSpaceEventHandler.setInputAction(function onMouseMove(movement) {
     pickedObject.primitive !== lastPickedPrimitive
   ) {
     // Apply hover highlight
-    highlightHover(pickedObject.primitive);
+    highlightPrimitiveOnHover(pickedObject.primitive);
     lastHoveredPrimitive = pickedObject.primitive;
   } else if (!Cesium.defined(pickedObject) && lastHoveredPrimitive) {
     // If moved away from the last hovered primitive, reset its color
     resetLastHoveredPrimitiveColor();
     lastHoveredPrimitive = null;
   }
-}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+}
+
+viewer.screenSpaceEventHandler.setInputAction(onMouseMove, Cesium.ScreenSpaceEventType.MOUSE_MOVE);

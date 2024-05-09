@@ -139,6 +139,7 @@ export async function drawPole(tile, pole, viewer, primitiveCollectionMap, primi
     const endCoordinate = pole.coordinates[1];
 
     const poleId = pole.Pole_Id;
+    const combinedId = `pole-${poleId }`
     // Check if a primitive already exists for this conductorId, and if so, remove it
     const existingPrimitive = primitiveMap.get(poleId);
     if (existingPrimitive) {
